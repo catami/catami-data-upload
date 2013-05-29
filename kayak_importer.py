@@ -164,7 +164,7 @@ if __name__ == "__main__":
             f.write(string)
             string = 'Contact Person:\n'
             f.write(string)
-            
+
     for directory in directories:
         filelist = [o for o in os.listdir(directory) if os.path.isfile(os.path.join(directory, o))]
 
@@ -185,7 +185,7 @@ if __name__ == "__main__":
                 Description_string = 'Description:'+directory+' Kayak Transects\n'
                 f.write(Description_string)
 
-        for image in filelist:           
+        for image in filelist:
             if is_image(os.path.join(directory, image)):
                 latitude, longitude = get_lat_lon(os.path.join(directory, image))
                 depth = 2.0

@@ -2,12 +2,13 @@
 # -*- coding: utf-8 -*-
 
 """Parse AIMS Kayak (GoPro) files to produce valid Catami project
-v1.0
+Catami Data Spec V1.0
+https://github.com/catami/catami/wiki/Data-importing
+
 
 expects file structure as
 
 Root Dir
-  |--Campaign.txt
   |--Image Dir 01
   |       |--images01.jpg
   |       |--images02.jpg
@@ -17,8 +18,10 @@ Root Dir
   |       |--images02.jpg
   |       |-- ...
   ...
-Most data is taken from the XLSX file (inspected JPG files have lat/longs in EXIF, XLSX lat/longs are considered authoratative)
-Camera details are taken from image EXIF data
+
+This script adds a blank campaign.txt to the root dir and adds description.txt (autofilled) and images.csv (autofilled)
+to the Image Directories as required by the Catami data spec.  You will need to manually edit campaign.txt prior to import.
+
 Data without source are set to fill (-999 for numerical data, 'null' for string data)
 
 v1.0 28/05/2013 markg@ivec.org
@@ -26,9 +29,21 @@ v1.0 28/05/2013 markg@ivec.org
 import os
 import os.path
 import imghdr
+import argparse
 
 from PIL import Image
 from PIL.ExifTags import TAGS, GPSTAGS
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--path', nargs=1, help='Path to root Kayak data directory')
+args = parser.parse_args()
+
+root_import_path = args.path[0]
+
+print 'Looking in: ', root_import_path
+
+if not os.path.isdir(root_import_path):
+    raise Exception('This is not a valid path. Check the path to your kayak data.')
 
 images_filename = 'images.csv'
 description_filename = 'description.txt'
@@ -143,9 +158,14 @@ def get_camera_makemodel(image_name):
 if __name__ == "__main__":
     """Builds Catami format package for Kayak AIMS data"""
 
-    directories = [o for o in os.listdir('.') if os.path.isdir(o)]
-    if not os.path.isfile(campaign_filename):
-        with open(campaign_filename, "w") as f:
+    #look for dirs in the root dir. Ignore pesky hidden dirs added by various naughty things
+    directories = [o for o in os.listdir(root_import_path) if os.path.isdir(os.path.join(root_import_path, o)) and not o.startswith('.')]
+
+    if len(directories) == 0:
+        raise Exception('I didn\'t find any directories to import. Check that the specified path contains kayak image directories.')
+
+    if not os.path.isfile(os.path.join(root_import_path, campaign_filename)):
+        with open(os.path.join(root_import_path, campaign_filename), "w") as f:
             string = 'version:'+current_format_version+'\n'
             f.write(string)
             string = 'Name:\n'
@@ -166,18 +186,19 @@ if __name__ == "__main__":
             f.write(string)
 
     for directory in directories:
-        filelist = [o for o in os.listdir(directory) if os.path.isfile(os.path.join(directory, o))]
+        image_dir = os.path.join(root_import_path, directory)
+        filelist = [o for o in os.listdir(image_dir) if os.path.isfile(os.path.join(image_dir, o))]
 
-        if not os.path.isfile(os.path.join(directory, images_filename)):
-            with open(os.path.join(directory, images_filename), "w") as f:
+        if not os.path.isfile(os.path.join(image_dir, images_filename)):
+            with open(os.path.join(image_dir, images_filename), "w") as f:
                 version_string = 'version:'+current_format_version+'\n'
                 f.write(version_string)
                 headers = 'Time ,Latitude , Longitude  , Depth  , ImageName , CameraName , CameraAngle , Temperature (celcius) , Salinity (psu) , Pitch (radians) , Roll (radians) , Yaw (radians) , Altitude (metres)\n'
                 f.write(headers)
 
         # make the descriptopm file if it doesn't exist
-        if not os.path.isfile(os.path.join(directory, description_filename)):
-            with open(os.path.join(directory, description_filename), "w") as f:
+        if not os.path.isfile(os.path.join(image_dir, description_filename)):
+            with open(os.path.join(image_dir, description_filename), "w") as f:
                 version_string = 'version:'+current_format_version+'\n'
                 f.write(version_string)
                 deployment_type_string = 'Type: TI\n'
@@ -186,11 +207,11 @@ if __name__ == "__main__":
                 f.write(Description_string)
 
         for image in filelist:
-            if is_image(os.path.join(directory, image)):
-                latitude, longitude = get_lat_lon(os.path.join(directory, image))
+            if is_image(os.path.join(image_dir, image)):
+                latitude, longitude = get_lat_lon(os.path.join(image_dir, image))
                 depth = 2.0
-                image_datetime = get_photo_datetime(os.path.join(directory, image))
-                camera_name = get_camera_makemodel(os.path.join(directory, image))
+                image_datetime = get_photo_datetime(os.path.join(image_dir, image))
+                camera_name = get_camera_makemodel(os.path.join(image_dir, image))
                 camera_angle = 'Downward'
                 temperature = fill_value
                 salinity = fill_value
@@ -200,6 +221,6 @@ if __name__ == "__main__":
                 altitude = fill_value
 
                 #append to csv
-                with open(os.path.join(directory, images_filename), "a") as f:
+                with open(os.path.join(image_dir, images_filename), "a") as f:
                     csv_string = unicode(image_datetime)+','+str(latitude)+','+str(longitude)+','+str(depth)+','+image+','+camera_name+','+camera_angle+','+str(temperature)+','+str(salinity)+','+str(pitch_angle)+','+str(roll_angle)+','+str(yaw_angle)+','+str(altitude)+'\n'
                     f.write(csv_string)

@@ -184,6 +184,7 @@ if __name__ == "__main__":
             f.write(string)
             string = 'Contact Person:\n'
             f.write(string)
+    print 'Made', campaign_filename, 'in', root_import_path
 
     for directory in directories:
         image_dir = os.path.join(root_import_path, directory)
@@ -195,6 +196,7 @@ if __name__ == "__main__":
                 f.write(version_string)
                 headers = 'Time ,Latitude , Longitude  , Depth  , ImageName , CameraName , CameraAngle , Temperature (celcius) , Salinity (psu) , Pitch (radians) , Roll (radians) , Yaw (radians) , Altitude (metres)\n'
                 f.write(headers)
+        print 'Made', images_filename, 'in', directory
 
         # make the descriptopm file if it doesn't exist
         if not os.path.isfile(os.path.join(image_dir, description_filename)):
@@ -205,9 +207,12 @@ if __name__ == "__main__":
                 f.write(deployment_type_string)
                 Description_string = 'Description:'+directory+' Kayak Transects\n'
                 f.write(Description_string)
+        print 'Made', description_filename, 'in', directory
 
+        count = 0
         for image in filelist:
             if is_image(os.path.join(image_dir, image)):
+                count = count + 1
                 latitude, longitude = get_lat_lon(os.path.join(image_dir, image))
                 depth = 2.0
                 image_datetime = get_photo_datetime(os.path.join(image_dir, image))
@@ -224,3 +229,6 @@ if __name__ == "__main__":
                 with open(os.path.join(image_dir, images_filename), "a") as f:
                     csv_string = unicode(image_datetime)+','+str(latitude)+','+str(longitude)+','+str(depth)+','+image+','+camera_name+','+camera_angle+','+str(temperature)+','+str(salinity)+','+str(pitch_angle)+','+str(roll_angle)+','+str(yaw_angle)+','+str(altitude)+'\n'
                     f.write(csv_string)
+        print 'Added ', count, 'entries in', directory, ":", images_filename
+
+    print '...All done'

@@ -146,9 +146,9 @@ def get_camera_makemodel(image_name):
         for tag, value in info.items():
             decoded = TAGS.get(tag, tag)
             if decoded == "Model":
-                model = value
+                model = value.strip()
             if decoded == "Make":
-                make = value
+                make = value.strip()
         make_model_string = make+model
     else:
         make_model_string = 'null'
@@ -207,6 +207,10 @@ if __name__ == "__main__":
                 f.write(deployment_type_string)
                 Description_string = 'Description:'+directory+' Kayak Transects\n'
                 f.write(Description_string)
+                Operater_string = 'Operator: \n'
+                f.write(Operater_string)
+                Keyword_string = 'Keywords: \n'
+                f.write(Keyword_string)
         print 'Made', description_filename, 'in', directory
 
         count = 0

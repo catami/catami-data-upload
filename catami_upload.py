@@ -415,31 +415,29 @@ def scan_deployment(deployment_path):
     return deployment_post_data
 
 
-def get_camera_data(deployment_path):
+def get_camera_data(image_data):
     """ checks images list for the camera a returns a dict for posting
         Note: will eventually handle the multiple camera case, if we ever see a deployment with such.
     """
 
-    images_data = read_images_file(deployment_path)
-
-    if images_data is None:
+    if image_data is None:
         # holy hell, something has gone wrong here
-        print 'FAILED: Failed to read images.csv for camera data'
+        print 'FAILED: Failed to get image data for camera data'
         return None
 
-    if images_data[-1]['camera_angle'].lower() == 'Downward'.lower():
+    if image_data['camera_angle'].lower() == 'Downward'.lower():
         angle_value = 0
-    elif images_data[-1]['camera_angle'].lower() == 'Upward'.lower():
+    elif image_data['camera_angle'].lower() == 'Upward'.lower():
         angle_value = 1
-    elif images_data[-1]['camera_angle'].lower() == 'Slanting/Oblique'.lower():
+    elif image_data['camera_angle'].lower() == 'Slanting/Oblique'.lower():
         angle_value = 2
-    elif images_data[-1]['camera_angle'].lower() == 'Horizontal/Seascape'.lower():
+    elif image_data['camera_angle'].lower() == 'Horizontal/Seascape'.lower():
         angle_value = 3
     else:
-        print 'FAILED: camera angle of', images_data[-1]['camera_angle'].lower(), 'was not recognised.'
+        print 'FAILED: camera angle of', image_data['camera_angle'].lower(), 'was not recognised.'
         return None
 
-    camera_data = dict(name=images_data[-1]['camera_name'],
+    camera_data = dict(name=image_data['camera_name'],
                        angle=str(angle_value))
 
     return camera_data
@@ -718,28 +716,9 @@ def post_deployment_to_server(deployment_path, server_root, username, user_apike
 
     # POST images for deployment
 
-    # first post the camera for the images
-    camera_data = get_camera_data(deployment_path)
-    if camera_data is None:
-        print 'FAILED: Could not get camera data for deployment'
-        return False
-
-    print 'SENDING: Camera info...'
-    url = urlparse.urljoin(server_root, camera_api_path)
-    headers = {'Content-type': 'application/json'}
-    r = requests.post(url, data=json.dumps(camera_data), headers=headers, params=params)
-    if (r.status_code == requests.codes.created):
-        camera_url = r.headers['location']
-        print 'SUCCESS: Camera data uploaded:', urlparse.urlsplit(camera_url).path
-    else:
-        print 'FAILED: Server returned', r.status_code
-        print 'MESSAGE: Full message from server follows:'
-        print r.text
-        return False
-
     image_data = read_images_file(deployment_path)
 
-    #main image posting loop. 
+    #main image posting loop.
 
     for index, current_image in enumerate(image_data):
         # if the image has no lat/long we skip it here
@@ -749,9 +728,54 @@ def post_deployment_to_server(deployment_path, server_root, username, user_apike
 
         print 'MESSAGE: Uploading [', index, '/', len(image_data), ']', current_image['image_name']
 
-        # STEP 1: post the measurement data
+        # STEP 1 post the image metadata
+        image_metadata = dict(web_location='',
+                              archive_location='None',
+                              deployment=urlparse.urlsplit(deployment_url).path,
+                              date_time=current_image['time'],
+                              position='SRID=4326;POINT('+current_image['longitude']+' '+current_image['latitude']+')',
+                              depth=image_data[3]['depth'])
 
-        measurement_data = dict(temperature=current_image['temperature'],
+        print 'SENDING: Image metadata for', current_image['image_name']
+        url = urlparse.urljoin(server_root, image_metadata_api_path)
+        headers = {'Content-type': 'application/json'}
+        r = requests.post(url, data=json.dumps(image_metadata), headers=headers, params=params)
+
+        if (r.status_code == requests.codes.created):
+            image_metadata_url = r.headers['location']
+            print 'SUCCESS: Image metadata uploaded:', urlparse.urlsplit(image_metadata_url).path
+        else:
+            print 'FAILED: Server returned', r.status_code
+            print 'MESSAGE: Full message from server follows:'
+            print r.text
+            return False
+
+        # STEP 2: post the camrea data and measurement data
+        camera_data = get_camera_data(current_image)
+
+        if camera_data is None:
+            print 'FAILED: Could not get camera data for deployment'
+            return False
+
+        # add the image api url for camera
+        camera_data['image'] = urlparse.urlsplit(image_metadata_url).path
+
+        print 'SENDING: Camera info...'
+        url = urlparse.urljoin(server_root, camera_api_path)
+        headers = {'Content-type': 'application/json'}
+        r = requests.post(url, data=json.dumps(camera_data), headers=headers, params=params)
+
+        if (r.status_code == requests.codes.created):
+            camera_url = r.headers['location']
+            print 'SUCCESS: Camera data uploaded:', urlparse.urlsplit(camera_url).path
+        else:
+            print 'FAILED: Server returned', r.status_code
+            print 'MESSAGE: Full message from server follows:'
+            print r.text
+            return False
+
+        measurement_data = dict(image=urlparse.urlsplit(image_metadata_url).path,
+                                temperature=current_image['temperature'],
                                 salinity=current_image['salinity'],
                                 pitch=current_image['pitch'],
                                 roll=current_image['roll'],
@@ -771,36 +795,24 @@ def post_deployment_to_server(deployment_path, server_root, username, user_apike
             print r.text
             return False
 
-        # STEP 2 post the image metadata
-        image_metadata = dict(measurements=urlparse.urlsplit(measurement_url).path,
-                              camera=urlparse.urlsplit(camera_url).path,
-                              web_location='',
-                              archive_location='None',
-                              deployment=urlparse.urlsplit(deployment_url).path,
-                              date_time=current_image['time'],
-                              position='SRID=4326;POINT('+current_image['longitude']+' '+current_image['latitude']+')',
-                              depth=image_data[3]['depth'])
-        print 'SENDING: Image metadata for', current_image['image_name']
-        url = urlparse.urljoin(server_root, image_metadata_api_path)
-        headers = {'Content-type': 'application/json'}
-        r = requests.post(url, data=json.dumps(image_metadata), headers=headers, params=params)
-        if (r.status_code == requests.codes.created):
-            image_metadata_url = r.headers['location']
-            print 'SUCCESS: Image metadata uploaded:', urlparse.urlsplit(image_metadata_url).path
-        else:
-            print 'FAILED: Server returned', r.status_code
-            print 'MESSAGE: Full message from server follows:'
-            print r.text
-            return False
-
         # STEP 3 finally post the actual image
+
+        #image POST also needs:
+        #'deployment': deployment ID number
+        #'img'; image name
+        post_data = {'deployment': deployment_url.split('/')[-2],
+                     'img': current_image['image_name']}
 
         print 'SENDING: Image object;', current_image['image_name']
         url = urlparse.urljoin(server_root, image_object_api_path)
         headers = {'Content-type': 'application/json'}
-        image_file = {'file': open(current_image['image_name'], 'rb')}
+        if os.path.isfile(os.path.join(deployment_path, current_image['image_name'])):
+            image_file = {'file': open(os.path.join(deployment_path, current_image['image_name']), 'rb')}
+        else:
+            print 'FAILED: expect image missing at', os.path.join(deployment_path, current_image['image_name'])
+            return False
 
-        r = requests.post(url, file=image_file)
+        r = requests.post(url, files=image_file, params=params, data=post_data)
         if (r.status_code == requests.codes.created):
             print 'SUCCESS: Image uploaded:', image_file
         else:

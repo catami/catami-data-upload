@@ -403,7 +403,7 @@ def scan_deployment(deployment_path):
     deployment_post_data['transect_shape'] = bounding_polygon
     deployment_post_data['start_time_stamp'] = first_valid_image['time']
     deployment_post_data['end_time_stamp'] = image_data[-1]['time']
-    deployment_post_data['short_name'] = deployment_path
+    deployment_post_data['short_name'] = deployment_path.split('/')[-2]
     deployment_post_data['mission_aim'] = deployment_info['description']
     deployment_post_data['min_depth'] = str(depth_array.min())
     deployment_post_data['max_depth'] = str(depth_array.max())
@@ -800,14 +800,14 @@ def post_deployment_to_server(deployment_path, server_root, username, user_apike
         #image POST also needs:
         #'deployment': deployment ID number
         #'img'; image name
-        post_data = {'deployment': deployment_url.split('/')[-2],
-                     'img': current_image['image_name']}
+        post_data = {'deployment': deployment_url.split('/')[-2]} 
+            #         'img': current_image['image_name']}
 
         print 'SENDING: Image object;', current_image['image_name']
         url = urlparse.urljoin(server_root, image_object_api_path)
         headers = {'Content-type': 'application/json'}
         if os.path.isfile(os.path.join(deployment_path, current_image['image_name'])):
-            image_file = {'file': open(os.path.join(deployment_path, current_image['image_name']), 'rb')}
+            image_file = {'img': open(os.path.join(deployment_path, current_image['image_name']), 'rb')}
         else:
             print 'FAILED: expect image missing at', os.path.join(deployment_path, current_image['image_name'])
             return False

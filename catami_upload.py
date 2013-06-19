@@ -39,14 +39,27 @@ from PIL import Image
 
 # Command line options setup
 parser = argparse.ArgumentParser()
-parser.add_argument('--campaign', nargs=1, help='Path to root Catami data directory for campaign, ie: /data/somthing/some_campaign')
-parser.add_argument('--server', nargs=1, help='Catami server location for upload, ie: http://catami.org')
-parser.add_argument('--username', nargs=1, help='User name for your Catami account')
-parser.add_argument('--apikey', nargs=1, help='API Key for your Catami account, please see your Catami admin')
+parser.add_argument('server', nargs=1, help='Catami server location for upload, ie: http://catami.org')
+parser.add_argument('username', nargs=1, help='User name for your Catami account')
+parser.add_argument('apikey', nargs=1, help='API Key for your Catami account, please see your Catami admin')
+
+group = parser.add_mutually_exclusive_group()
+group.add_argument('--deployment', nargs=1, help='Path to root Catami data directory for campaign, ie: /data/somthing/some_campaign. You must also specify --campaign-api')
+group.add_argument('--campaign', nargs=1, help='Path to root Catami data directory for campaign, ie: /data/somthing/some_campaign')
+
+parser.add_argument('--campaign_api', nargs=1, help='URL for Campaign specified at --server')
 
 args = parser.parse_args()
 
-root_import_path = args.campaign[0]
+if not args.deployment and not args.campaign:
+    parser.exit(1, 'You must specify --deployment or --campaign')
+
+if args.deployment and not args.campaign_api:
+    parser.exit(1, 'You must specify --campaign_api with --deployment')
+
+if args.campaign and args.campaign_api:
+    parser.exit(1, 'You cannot specify --campaign_api with --campaign')
+
 server_root = args.server[0]
 username = args.username[0]
 apikey = args.apikey[0]
@@ -110,14 +123,24 @@ def basic_import_checks(root_import_path, server_root):
 
     for directory in directories:
         image_dir = os.path.join(root_import_path, directory)
-
-        if not os.path.isfile(os.path.join(image_dir, images_filename)):
+        if not check_deployment_files(image_dir):
+            print 'MISSING: Deployment is incomplete at', image_dir
             everthing_is_fine = False
-            print 'MISSING:images.csv file is missing in', image_dir
 
-        if not os.path.isfile(os.path.join(image_dir, description_filename)):
-            everthing_is_fine = False
-            print 'MISSING:description.txt file is missing in', image_dir
+    return everthing_is_fine
+
+
+def check_deployment_files(deployment_path):
+
+    everthing_is_fine = True
+
+    if not os.path.isfile(os.path.join(deployment_path, images_filename)):
+        everthing_is_fine = False
+        print 'MISSING:images.csv file is missing in', deployment_path
+
+    if not os.path.isfile(os.path.join(deployment_path, description_filename)):
+        everthing_is_fine = False
+        print 'MISSING:description.txt file is missing in', deployment_path
 
     return everthing_is_fine
 
@@ -231,7 +254,7 @@ def check_deployment_images(deployment_path):
                 print 'ERROR:', bad_image_count, '(of', good_image_count, ') bad images were found'
                 is_broken = True
             else:
-                print 'SUCCESS:', good_image_count,' images checked'
+                print 'SUCCESS:', good_image_count, ' images checked'
 
             #did something important break?
             if is_broken:
@@ -825,31 +848,61 @@ def post_deployment_to_server(deployment_path, server_root, username, user_apike
 def main():
     """main routine
     """
-    print 'MESSAGE: Checking', root_import_path
     problem_found = False
 
-    #  basic checks, does the dir exist? is the server live?
-    if not basic_import_checks(root_import_path, server_root):
-        print 'ERROR: Required files and/or resources are missing. Validation stopping right here. Fix errors and try again'
-        sys.exit(1)
+    #campaign import
+    if args.campaign:
+        root_import_path = args.campaign[0]
 
-    # if we are still going then all required files exist. Yay us!
-    campaign_status = check_campaign(root_import_path)
+        print 'MESSAGE: Checking', root_import_path
 
-    directories = [o for o in os.listdir(root_import_path) if os.path.isdir(os.path.join(root_import_path, o)) and not o.startswith('.')]
+        #  basic checks, does the dir exist? is the server live?
+        if not basic_import_checks(root_import_path, server_root):
+            print 'ERROR: Required files and/or resources are missing. Validation stopping right here. Fix errors and try again'
+            problem_found = True
 
-    for directory in directories:
-        deployment_status = check_deployment(os.path.join(root_import_path, directory))
-        deployment_status = check_deployment_images(os.path.join(root_import_path, directory))
+        if not problem_found:
+            # if we are still going then all required files exist. Yay us!
+            campaign_status = check_campaign(root_import_path)
 
-    print 'SUCCESS: All checks are done, campaign is ready to upload'
+            directories = [o for o in os.listdir(root_import_path) if os.path.isdir(os.path.join(root_import_path, o)) and not o.startswith('.')]
 
-    # username = 'pooper'
-    # user_apikey = 'e688869735a817b60ae701d4d2c713ec9de67d67'
-    if post_campaign_to_server(root_import_path, server_root, username, apikey):
-        print 'SUCCESS: Everything went just great!'
-    else:
-        print 'ERROR: Everything did not go just great :('
+            for directory in directories:
+                deployment_status = check_deployment(os.path.join(root_import_path, directory))
+                deployment_status = check_deployment_images(os.path.join(root_import_path, directory))
+
+            print 'SUCCESS: All checks are done, campaign is ready to upload'
+
+            # username = 'pooper'
+            # user_apikey = 'e688869735a817b60ae701d4d2c713ec9de67d67'
+            if post_campaign_to_server(root_import_path, server_root, username, apikey):
+                print 'SUCCESS: Everything went just great!'
+            else:
+                print 'ERROR: Everything did not go just great :('
+
+    # deployment import
+    if args.deployment:
+        deployment_dir = args.deployment[0]
+        campaign_api_path =  args.campaign_api[0]
+        print 'MESSAGE: Checking', deployment_dir
+
+        deployment_status = True
+        # basic check
+        if not check_deployment_files(deployment_dir):
+            print 'MISSING: Deployment is incomplete at', deployment_dir
+            problem_found = True
+
+        if not problem_found:
+            deployment_status = check_deployment(deployment_dir)
+            deployment_status = check_deployment_images(deployment_dir)
+
+            if deployment_status:
+                if post_deployment_to_server(deployment_dir, server_root, username, apikey, campaign_api_path):
+                    print 'SUCCESS: Everything went just great!'
+                else:
+                    print 'ERROR: Everything did not go just great :('
+            else:
+                    print 'ERROR: Everything did not go just great :('
 
 
 if __name__ == "__main__":

@@ -799,9 +799,7 @@ def post_deployment_to_server(deployment_path, server_root, username, user_apike
 
         #image POST also needs:
         #'deployment': deployment ID number
-        #'img'; image name
-        post_data = {'deployment': deployment_url.split('/')[-2]} 
-            #         'img': current_image['image_name']}
+        post_data = {'deployment': deployment_url.split('/')[-2]}
 
         print 'SENDING: Image object;', current_image['image_name']
         url = urlparse.urljoin(server_root, image_object_api_path)
@@ -814,7 +812,7 @@ def post_deployment_to_server(deployment_path, server_root, username, user_apike
 
         r = requests.post(url, files=image_file, params=params, data=post_data)
         if (r.status_code == requests.codes.created):
-            print 'SUCCESS: Image uploaded:', image_file
+            print 'SUCCESS: Image uploaded:', current_image['image_name']
         else:
             print 'FAILED: Server returned', r.status_code
             print 'MESSAGE: Full message from server follows:'

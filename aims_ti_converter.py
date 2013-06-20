@@ -25,10 +25,17 @@ v1.0 28/05/2013 markg@ivec.org
 """
 import os
 import os.path
+import argparse
 
 from openpyxl.reader.excel import load_workbook
 from PIL import Image
 from PIL.ExifTags import TAGS
+
+parser = argparse.ArgumentParser(description='Parse AIMS TI data to produce valid Catami project.')
+parser.add_argument('--path', nargs=1, help='Path to TI data directory')
+parser.add_argument('--deployment', action='store_true', default=False, help='Convert the directory as a deployment, to be attached to an existing campaign')
+parser.add_argument('--spreadsheet', nargs=1, help='Path to root XLSX file for campaign')
+args = parser.parse_args()
 
 images_filename = 'images.csv'
 description_filename = 'description.txt'
@@ -59,7 +66,7 @@ def get_camera_makemodel(image_name):
 
 if __name__ == "__main__":
 
-    wb = load_workbook(filename=r'NingalooMar12_ImageLocations.xlsx', use_iterators=True)
+    wb = load_workbook(filename=args.spreadsheet[0], use_iterators=True)
 
     ws = wb.get_sheet_by_name(name='Sheet1')
 

@@ -6,6 +6,15 @@ The variable nature of historical data means that Catami data conversion routine
 
 catami-upload.py is the validation and upload tool for Catami data.
 
+## Python requirements
+
+You need Python 2.7.x installed and available on your system.
+
+In addition the following Python modules will need to be installed:
+* PIL: Python Imaging Library http://www.pythonware.com/products/pil/
+* Requests: http://docs.python-requests.org/en/latest/
+* Numpy: http://www.numpy.org
+	
 ## Converting a deployment or campaign to Catami format
 
 Before you try to validate or upload Catami data you need to get your data under control.  Catami has a simple, human readable

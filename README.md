@@ -33,19 +33,31 @@ a pre-existing campaign. Geolocation data is taken from the EXIF Geolocation dat
 depth soundings are available) with a single estimate with the --depth flag.
 
 Example usage:
+
     python kayak_converter.py --path /Volumes/STORE_MAC/data/kayakdata_2012/ --depth 2.0
 
 Alternately you can convert a single directory to a Catami Deployment
 
-    python kayak_converter.py --path /Volumes/STORE_MAC/data/kayakdata_2012/leg01 --depth 2.0
+    python kayak_converter.py --deployment --path /Volumes/STORE_MAC/data/kayakdata_2012/leg01 --depth 2.0
 
+## Validating and uploading deployment or campaign to a Catami server
 
-Example 
-Validating a deployment or campaign
------------------------------------
+catami_upload.py is provided to validate and upload campaigns and deployments to specified Catami servers.  This tool
+validates a campaign or deployment and, if validation is successful, uploads the campaign/deployment to a specified
+Catami server.
+
+Authentication is required for uploading data to a Catami server and uses your account name and an API key available
+from the Catami admin interface.
 
 Example usage:
-python catami_upload.py  --path /Volumes/Store/data/TurquoiseBay_20130516/  --server sandbox.catami.org
 
-Validating and uploading deployment or campaign to a Catami server
-------------------------------------------------------------------
+to up load a campaign and all deployments within
+
+   python catami_upload.py  --campaign /Volumes/STORE_MAC/data/TurquoiseBay_20130516 --server http://localhost:8000 --username user --apikey e688869735a817bf890d701d4d2c713ec9de67d67
+
+to upload a deployment to an existing campaign
+
+   python catami_upload.py  --deployment /Volumes/STORE_MAC/data/TurquoiseBay_20130516/run01 --server http://localhost:8000 --username user --apikey e688869735a817bf890d701d4d2c713ec9de67d67 --campaign_api /api/dev/campaign/92
+
+## Validating a deployment or campaign
+

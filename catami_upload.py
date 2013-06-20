@@ -23,7 +23,6 @@ Root Dir
 
 v1.0 30/05/2013 markg@ivec.org
 """
-import sys
 import os
 import os.path
 import argparse
@@ -39,9 +38,12 @@ from PIL import Image
 
 # Command line options setup
 parser = argparse.ArgumentParser()
-parser.add_argument('server', nargs=1, help='Catami server location for upload, ie: http://catami.org')
-parser.add_argument('username', nargs=1, help='User name for your Catami account')
-parser.add_argument('apikey', nargs=1, help='API Key for your Catami account, please see your Catami admin')
+
+parser.add_argument('--validate', action='store_true', default=False, help='Validate only: do not upload anything to the server.')
+
+parser.add_argument('--server', nargs=1, help='Catami server location for upload, ie: http://catami.org')
+parser.add_argument('--username', nargs=1, help='User name for your Catami account')
+parser.add_argument('--apikey', nargs=1, help='API Key for your Catami account, please see your Catami admin')
 
 group = parser.add_mutually_exclusive_group()
 group.add_argument('--deployment', nargs=1, help='Path to root Catami data directory for campaign, ie: /data/somthing/some_campaign. You must also specify --campaign-api')
@@ -60,9 +62,12 @@ if args.deployment and not args.campaign_api:
 if args.campaign and args.campaign_api:
     parser.exit(1, 'You cannot specify --campaign_api with --campaign')
 
-server_root = args.server[0]
-username = args.username[0]
-apikey = args.apikey[0]
+if args.server:
+    server_root = args.server[0]
+if args.username:
+    username = args.username[0]
+if args.apikey:
+    apikey = args.apikey[0]
 
 #Filenames for critical campaign/deployment files
 images_filename = 'images.csv'
@@ -880,15 +885,18 @@ def main():
 
             # username = 'pooper'
             # user_apikey = 'e688869735a817b60ae701d4d2c713ec9de67d67'
-            if post_campaign_to_server(root_import_path, server_root, username, apikey):
-                print 'SUCCESS: Everything went just great!'
-            else:
-                print 'ERROR: Everything did not go just great :('
+
+            if not args.validate:
+                if post_campaign_to_server(root_import_path, server_root, username, apikey):
+                    print 'SUCCESS: Everything went just great!'
+                else:
+                    print 'ERROR: Everything did not go just great :('
 
     # deployment import
     if args.deployment:
         deployment_dir = args.deployment[0]
-        campaign_api_path =  args.campaign_api[0]
+        campaign_api_path = args.campaign_api[0]
+
         print 'MESSAGE: Checking', deployment_dir
 
         deployment_status = True
@@ -901,13 +909,14 @@ def main():
             deployment_status = check_deployment(deployment_dir)
             deployment_status = check_deployment_images(deployment_dir)
 
-            if deployment_status:
-                if post_deployment_to_server(deployment_dir, server_root, username, apikey, campaign_api_path):
-                    print 'SUCCESS: Everything went just great!'
+            if not args.validate:
+                if deployment_status:
+                    if post_deployment_to_server(deployment_dir, server_root, username, apikey, campaign_api_path):
+                        print 'SUCCESS: Everything went just great!'
+                    else:
+                        print 'ERROR: Everything did not go just great :('
                 else:
-                    print 'ERROR: Everything did not go just great :('
-            else:
-                    print 'ERROR: Everything did not go just great :('
+                        print 'ERROR: Everything did not go just great :('
 
 
 if __name__ == "__main__":

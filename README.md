@@ -46,14 +46,14 @@ Alternately you can convert a single directory to a Catami Deployment
 
 catami_upload.py is provided to validate and upload campaigns and deployments to specified Catami servers.  This tool
 validates a campaign or deployment and, if validation is successful, uploads the campaign/deployment to a specified
-Catami server.
+Catami server.  If validation is unsuccessful error messages will tell you whats wrong with your data.  
 
 Authentication is required for uploading data to a Catami server and uses your account name and an API key available
-from the Catami admin interface.
+from the Catami admin interface.  The --server, --username and --apikey are required for 
 
 Example usage:
 
-to up load a campaign and all deployments within
+to upload a campaign and all deployments within
 
     python catami_upload.py  --campaign /Volumes/STORE_MAC/data/TurquoiseBay_20130516 \
                              --server http://localhost:8000 \
@@ -63,10 +63,24 @@ to up load a campaign and all deployments within
 to upload a deployment to an existing campaign
 
     python catami_upload.py  --deployment /Volumes/STORE_MAC/data/TurquoiseBay_20130516/run01 \
-    			     --server http://localhost:8000 \
-    			     --username user \
-    			     --apikey e688869735a817bf890d701d4d2c713ec9de67d67 \
-    			     --campaign_api /api/dev/campaign/92
+    			    		 --server http://localhost:8000 \
+    			     		 --username user \
+							 --apikey e688869735a817bf890d701d4d2c713ec9de67d67 \
+    			     		 --campaign_api /api/dev/campaign/92
 
 ## Validating a deployment or campaign
 
+You may simply want to validate a campaign or deployment without uploading the data to a Catami server. In
+this case use the --validate option (you may omit the authorisation options in this case).
+
+Example usage:
+
+to validate a campaign and all deployments within
+
+    python catami_upload.py  --campaign /Volumes/STORE_MAC/data/TurquoiseBay_20130516 \
+                             --validate
+
+to validate a deployment
+
+    python catami_upload.py  --deployment /Volumes/STORE_MAC/data/TurquoiseBay_20130516/run01 \
+    			     		 --validate

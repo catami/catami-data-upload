@@ -18,9 +18,9 @@ by transect with a directory for each transect. The conversion routine makes eac
 import and adds a campaign.txt at the root level for Catami Campaign Import
 
 Example usage:
-
+    
     python aims_ti_converter.py --path /Volumes/STORE_MAC/data/NingalooMar12/
-	
+
 Alternately you can convert a single directory to a Catami Deployment, though the script still expects to find the root XLSX file
 
     python aims_ti_converter.py --deployment --path /Volumes/STORE_MAC/data/NingalooMar12/Muirons1
@@ -33,11 +33,14 @@ depth soundings are available) with a single estimate with the --depth flag.
 
 Example usage:
 
-    python kayak_converter.py --path /Volumes/STORE_MAC/data/kayakdata_2012/ --depth 2.0
+    python kayak_converter.py --path /Volumes/STORE_MAC/data/kayakdata_2012/ \
+                              --depth 2.0
 
 Alternately you can convert a single directory to a Catami Deployment
 
-    python kayak_converter.py --deployment --path /Volumes/STORE_MAC/data/kayakdata_2012/leg01 --depth 2.0
+    python kayak_converter.py --deployment \
+                              --path /Volumes/STORE_MAC/data/kayakdata_2012/leg01 \
+                              --depth 2.0
 
 ## Validating and uploading deployment or campaign to a Catami server
 
@@ -52,11 +55,18 @@ Example usage:
 
 to up load a campaign and all deployments within
 
-    python catami_upload.py  --campaign /Volumes/STORE_MAC/data/TurquoiseBay_20130516 --server http://localhost:8000 --username user --apikey e688869735a817bf890d701d4d2c713ec9de67d67
+    python catami_upload.py  --campaign /Volumes/STORE_MAC/data/TurquoiseBay_20130516 \
+                             --server http://localhost:8000 \
+                             --username user \
+                             --apikey e688869735a817bf890d701d4d2c713ec9de67d67
 
 to upload a deployment to an existing campaign
 
-    python catami_upload.py  --deployment /Volumes/STORE_MAC/data/TurquoiseBay_20130516/run01 --server http://localhost:8000 --username user --apikey e688869735a817bf890d701d4d2c713ec9de67d67 --campaign_api /api/dev/campaign/92
+    python catami_upload.py  --deployment /Volumes/STORE_MAC/data/TurquoiseBay_20130516/run01 \
+    			     --server http://localhost:8000 \
+    			     --username user \
+    			     --apikey e688869735a817bf890d701d4d2c713ec9de67d67 \
+    			     --campaign_api /api/dev/campaign/92
 
 ## Validating a deployment or campaign
 

@@ -426,7 +426,12 @@ def scan_deployment(deployment_path):
     deployment_post_data['transect_shape'] = bounding_polygon
     deployment_post_data['start_time_stamp'] = first_valid_image['time']
     deployment_post_data['end_time_stamp'] = image_data[-1]['time']
-    deployment_post_data['short_name'] = deployment_path.split('/')[-2]
+
+    if deployment_path[-1] == '/':
+        deployment_post_data['short_name'] = deployment_path.split('/')[-2]
+    else:
+        deployment_post_data['short_name'] = deployment_path.split('/')[-1]
+
     deployment_post_data['mission_aim'] = deployment_info['description']
     deployment_post_data['min_depth'] = str(depth_array.min())
     deployment_post_data['max_depth'] = str(depth_array.max())

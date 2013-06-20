@@ -51,6 +51,13 @@ Alternately you can convert a single directory to a Catami Deployment
                               --path /Volumes/STORE_MAC/data/kayakdata_2012/leg01 \
                               --depth 2.0
 
+#### auv_converter.py
+Converts AUV data from U-Sydney ACFR to Catami format for import. Under developement.
+
+Example usage:
+
+	None Yet.
+
 ## Validating and uploading deployment or campaign to a Catami server
 
 catami_upload.py is provided to validate and upload campaigns and deployments to specified Catami servers.  This tool

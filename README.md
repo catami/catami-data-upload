@@ -1,5 +1,4 @@
 # Catami Data Uploader
-- - -
 
 A set of stand-alone tools to cdonvert, upload and/or validate data in the Catami data package format to a specified Catami server.
 
@@ -53,11 +52,11 @@ Example usage:
 
 to up load a campaign and all deployments within
 
-   python catami_upload.py  --campaign /Volumes/STORE_MAC/data/TurquoiseBay_20130516 --server http://localhost:8000 --username user --apikey e688869735a817bf890d701d4d2c713ec9de67d67
+    python catami_upload.py  --campaign /Volumes/STORE_MAC/data/TurquoiseBay_20130516 --server http://localhost:8000 --username user --apikey e688869735a817bf890d701d4d2c713ec9de67d67
 
 to upload a deployment to an existing campaign
 
-   python catami_upload.py  --deployment /Volumes/STORE_MAC/data/TurquoiseBay_20130516/run01 --server http://localhost:8000 --username user --apikey e688869735a817bf890d701d4d2c713ec9de67d67 --campaign_api /api/dev/campaign/92
+    python catami_upload.py  --deployment /Volumes/STORE_MAC/data/TurquoiseBay_20130516/run01 --server http://localhost:8000 --username user --apikey e688869735a817bf890d701d4d2c713ec9de67d67 --campaign_api /api/dev/campaign/92
 
 ## Validating a deployment or campaign
 

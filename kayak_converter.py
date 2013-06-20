@@ -37,6 +37,7 @@ from PIL.ExifTags import TAGS, GPSTAGS
 parser = argparse.ArgumentParser(description='Parse AIMS Kayak (GoPro) files to produce valid Catami project.')
 parser.add_argument('--path', nargs=1, help='Path to root Kayak data directory')
 parser.add_argument('--deployment', action='store_true', default=False, help='Convert the directory as a deployment, to be attached to an existing campaign')
+parser.add_argument('--depth', nargs=1, help='Depth estimate in metres for the entire set of images.')
 
 args = parser.parse_args()
 make_deployment = args.deployment
@@ -193,7 +194,7 @@ def convert_deployment(root_import_path, directory):
         if is_image(os.path.join(image_dir, image)):
             count = count + 1
             latitude, longitude = get_lat_lon(os.path.join(image_dir, image))
-            depth = 2.0
+            depth = args.depth
             image_datetime = get_photo_datetime(os.path.join(image_dir, image))
             camera_name = get_camera_makemodel(os.path.join(image_dir, image))
             camera_angle = 'Downward'

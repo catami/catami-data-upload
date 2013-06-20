@@ -29,10 +29,13 @@ import and adds a campaign.txt at the root level for Catami Campaign Import
 Example usage:
     
     python aims_ti_converter.py --path /Volumes/STORE_MAC/data/NingalooMar12/
+                                --spreadsheet /Volumes/STORE_MAC/data/NingalooMar12/NingalooMar12_ImageLocations.xlsx
 
-Alternately you can convert a single directory to a Catami Deployment, though the script still expects to find the root XLSX file
+Alternately you can convert a single directory to a Catami Deployment, not that the script still needs to find the root XLSX file
 
-    python aims_ti_converter.py --deployment --path /Volumes/STORE_MAC/data/NingalooMar12/Muirons1
+    python aims_ti_converter.py --deployment 
+                                --path /Volumes/STORE_MAC/data/NingalooMar12/Muirons1
+                                --spreadsheet /Volumes/STORE_MAC/data/NingalooMar12/NingalooMar12_ImageLocations.xlsx
 
 #### kayak_converter.py
 Converts Kayak collected imagery into Catami format.  Multiple directories within a root directory can be converted to the

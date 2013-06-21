@@ -39,11 +39,11 @@ from PIL import Image
 # Command line options setup
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--validate', action='store_true', default=False, help='Validate only: do not upload anything to the server.')
+parser.add_argument('--validate', action='store_true', default=False, help='Validate only, do not upload anything to a Catami server.')
 
 parser.add_argument('--server', nargs=1, help='Catami server location for upload, ie: http://catami.org')
-parser.add_argument('--username', nargs=1, help='User name for your Catami account')
-parser.add_argument('--apikey', nargs=1, help='API Key for your Catami account, please see your Catami admin')
+parser.add_argument('--username', nargs=1, help='User name for your Catami account.')
+parser.add_argument('--apikey', nargs=1, help='API Key for your Catami account, please see your Catami admin.')
 
 group = parser.add_mutually_exclusive_group()
 group.add_argument('--deployment', nargs=1, help='Path to root Catami data directory for campaign, ie: /data/somthing/some_campaign. You must also specify --campaign-api')
@@ -68,6 +68,10 @@ if args.username:
     username = args.username[0]
 if args.apikey:
     apikey = args.apikey[0]
+
+if not args.validate:
+    if not args.server or not args.username or not args.apikey:
+            parser.exit(1, 'You must specify --server, --username and --apikey, or use --validate. See --help for more info.')
 
 #Filenames for critical campaign/deployment files
 images_filename = 'images.csv'

@@ -174,7 +174,7 @@ def convert_deployment(root_import_path, directory):
             f.write(headers)
     print 'Made', images_filename, 'in', directory
 
-    # make the descriptopm file if it doesn't exist
+    # make the description file if it doesn't exist
     if not os.path.isfile(os.path.join(image_dir, description_filename)):
         with open(os.path.join(image_dir, description_filename), "w") as f:
             version_string = 'version:'+current_format_version+'\n'

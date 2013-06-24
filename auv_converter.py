@@ -15,6 +15,9 @@ import os.path
 import imghdr
 import argparse
 import glob
+import time
+
+from multiprocessing import Pool, Lock
 
 # date handling
 import datetime
@@ -26,21 +29,31 @@ from scipy.io import netcdf
 # for trackfiles from the data fabric
 import csv
 
+# progress bars
+from progressbar import ProgressBar, Percentage, Bar, Timer
+
 from PIL import Image
 #from PIL.ExifTags import TAGS, GPSTAGS
+
+globallock = Lock()
 
 parser = argparse.ArgumentParser(description='Parse AUV Data to produce a valid Catami project.')
 parser.add_argument('--path', nargs=1, help='Path to root AUV data directory')
 parser.add_argument('--deployment', action='store_true', default=False, help='Convert the directory as a deployment, to be attached to an existing campaign')
+parser.add_argument('--outputpath', nargs=1, help='Path to create for the converted data package')
 
 args = parser.parse_args()
 make_deployment = args.deployment
 root_import_path = args.path[0]
+root_output_path = args.outputpath[0]
 
 print 'Looking in: ', root_import_path
 
 if not os.path.isdir(root_import_path):
-    raise Exception('This is not a valid path. Check the path to your kayak data.')
+    raise Exception('This is not a valid path. Check the path to your AUV data.')
+
+if os.path.isdir(root_output_path):
+    raise Exception('The specified output path already exists.')
 
 images_filename = 'images.csv'
 description_filename = 'description.txt'
@@ -296,10 +309,8 @@ def auvdeployment_import(files):
     auvdeployment['min_depth'] = 14000
     auvdeployment['max_depth'] = 0
 
-
     auvdeployment['start_time_stamp'] = datetime.datetime.now()
     auvdeployment['end_time_stamp'] = datetime.datetime.now()
-
 
     # create the left-colour camera object
     # we don't normally give out the right mono
@@ -337,6 +348,8 @@ def auvdeployment_import(files):
         image_datetime = image_datetime.replace(tzinfo=tzutc())
         current_image['date_time'] = str(image_datetime)
         current_image['position'] = "POINT ({0} {1})".format(row['longitude'], row['latitude'])
+        current_image['latitude'] = row['latitude']
+        current_image['longitude'] = row['longitude']
 
         depth = float(row['depth'])
         current_image['depth'] = row['depth']
@@ -368,7 +381,7 @@ def auvdeployment_import(files):
         current_image['salinity'] = closer_seabird['salinity']
         current_image['roll'] = row['roll']
         current_image['pitch'] = row['pitch']
-        current_image['yaw_m'] = row['heading']
+        current_image['yaw'] = row['heading']
         current_image['altitude'] = row['altitude']
         current_image['camera'] = leftcamera['name']
         current_image['camera_angle'] = leftcamera['angle']
@@ -404,23 +417,112 @@ def is_image(image_path):
         return False
 
 
-def convert_deployment(deployment_import_path):
-    """ creates a new directory and populates ity with a Catami format structure based on the deployment
+def convert_file(local_tuple):
+    """ convert image to a Catami safe format
+    """
+    input_image = local_tuple[0]
+    output_image = local_tuple[1]
+
+    Image.open(input_image).save(output_image)
+
+
+def convert_deployment(deployment_import_path, deployment_output_path):
+    """ creates a new directory and populates it with a Catami format structure based on the deployment
         found in 'deployment_import_path'.
         Images are converted to JPG
     """
 
-    success = False
+    success = True
+
+    print 'import path is', deployment_import_path
+    print 'output path is', deployment_output_path
 
     files = AUVImporter.dependency_get(deployment_import_path)
     auvdeployment, image_list = auvdeployment_import(files)
-    print auvdeployment
+
     if auvdeployment is None or image_list is None:
         success = False
 
     if success:
-        new_directory = deployment_import_path+'-catami'
-        print new_directory
+
+        try:
+            os.makedirs(deployment_output_path)
+        except OSError as exception:
+                raise exception
+
+        print deployment_import_path.split('/')[-2]
+        print deployment_import_path.split('/')[-1]
+
+        if deployment_import_path[-1] == '/':
+            auvdeployment['short_name'] = deployment_import_path.split('/')[-2]
+        else:
+            auvdeployment['short_name'] = deployment_import_path.split('/')[-1]
+
+        # make the description file if it doesn't exist
+        if not os.path.isfile(os.path.join(deployment_output_path, description_filename)):
+            with open(os.path.join(deployment_output_path, description_filename), "w") as f:
+                version_string = 'version:'+current_format_version+'\n'
+                f.write(version_string)
+                deployment_type_string = 'Type: AUV\n'
+                f.write(deployment_type_string)
+                Description_string = 'Description:'+auvdeployment['short_name']+' Imported AUV\n'
+                f.write(Description_string)
+                Operater_string = 'Operator: \n'
+                f.write(Operater_string)
+                Keyword_string = 'Keywords: \n'
+                f.write(Keyword_string)
+
+        print 'Made', description_filename, 'in', auvdeployment['short_name']
+
+        count = 0
+
+        print 'Making images index...'
+        pbar = ProgressBar(widgets=[Percentage(), Bar(), Timer()], maxval=len(image_list)).start()
+
+        for image in image_list:
+                count = count + 1
+                pbar.update(count)
+                image_name = os.path.splitext(image['image_path'].split('/')[-1])[0]+'.jpg'
+                #append to csv
+                with open(os.path.join(deployment_output_path, images_filename), "a") as f:
+                    csv_string = image['date_time']+','+str(image['latitude'])+','+str(image['longitude'])+','+str(image['depth'])+','+image_name+','+image['camera']+','+image['camera_angle']+','+str(image['temperature'])+','+str(image['salinity'])+','+str(image['pitch'])+','+str(image['roll'])+','+str(image['yaw'])+','+str(image['altitude'])+'\n'
+                    f.write(csv_string)
+        pbar.finish()
+
+        image_name_list = []
+        for image in image_list:
+            image_name_list.append((image['image_path'], os.path.join(deployment_output_path, os.path.splitext(image['image_path'].split('/')[-1])[0]+'.jpg')))
+        # for image in image_list:
+        #     count = count + 1
+        #     pbar.update(count)
+        #     image_name = image['image_path']
+        #     new_image_name = os.path.join(deployment_output_path, os.path.splitext(image['image_path'].split('/')[-1])[0]+'.jpg')
+        #     try:
+        #         Image.open(image_name).save(new_image_name)
+        #     except IOError:
+        #         print "cannot convert", image_name
+
+        print 'Making image conversions for Catami...'
+        pbar = ProgressBar(widgets=[Percentage(), Bar(), Timer()], maxval=len(image_list)).start()
+        count = 0
+        pool = Pool(processes=10)
+        #pool.map(convert_file, zip(image_name_list, new_image_name_list))
+        rs = pool.imap_unordered(convert_file, image_name_list)
+        pool.close()
+
+        count = 0
+        #pbar = ProgressBar(widgets=[Percentage(), Bar(), Timer()], maxval=len(image_list)).start()
+        num_tasks = len(image_name_list)
+        while (True):
+            pbar.update(rs._index)
+            if (rs._index == num_tasks):
+                break
+            #pbar.update(count)
+            time.sleep(0.5)
+        #pool.join()
+        pbar.finish()
+
+    print 'Added ', count, 'entries in', deployment_output_path, ":", images_filename
 
     return success
 
@@ -430,7 +532,7 @@ def main():
     """
 
     if make_deployment:
-        convert_deployment(root_import_path)
+        convert_deployment(root_import_path, root_output_path)
     else:
         #look for dirs in the root dir. Ignore pesky hidden dirs added by various naughty things
         directories = [o for o in os.listdir(root_import_path) if os.path.isdir(os.path.join(root_import_path, o)) and not o.startswith('.')]

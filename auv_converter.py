@@ -422,8 +422,8 @@ def convert_file(local_tuple):
     """
     input_image = local_tuple[0]
     output_image = local_tuple[1]
-
-    Image.open(input_image).save(output_image)
+    quality_val = 90
+    Image.open(input_image).save(output_image, quality=quality_val)
 
 
 def convert_deployment(deployment_import_path, deployment_output_path):

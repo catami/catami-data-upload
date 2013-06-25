@@ -26,12 +26,22 @@ v1.0 30/05/2013 markg@ivec.org
 import os
 import os.path
 import argparse
+
+#web interaction
 import urlparse
 import requests
 import httplib
+
+#format support
 import csv
 import json
 import numpy as np
+
+from multiprocessing import Pool
+import time
+
+# progress bars
+from progressbar import ProgressBar, Percentage, Bar, Timer
 
 from PIL import Image
 # from PIL.ExifTags import TAGS, GPSTAGS
@@ -691,6 +701,32 @@ def post_campaign_to_server(root_import_path, server_root, user_name, api_key):
     return True
 
 
+def post_image_to_image_url(post_package):
+    """Posts an image to the server using file POST
+    """
+    #image POST also needs:
+    #'deployment': deployment ID number
+    post_data = {'deployment': post_package['deployment']}
+    params = dict(username=post_package['username'], api_key=post_package['user_apikey'])
+
+    #print 'SENDING: Image object;', current_image['image_name']
+    url = urlparse.urljoin(server_root, post_package['image_object_api_path'])
+    if os.path.isfile(os.path.join(post_package['deployment_path'], post_package['image_name'])):
+        image_file = {'img': open(os.path.join(post_package['deployment_path'], post_package['image_name']), 'rb')}
+    else:
+        print 'FAILED: expect image missing at', os.path.join(post_package['deployment_path'], post_package['image_name'])
+        return False
+
+    r = requests.post(url, files=image_file, params=params, data=post_data)
+    if not (r.status_code == requests.codes.created):
+        print 'FAILED: Server returned', r.status_code
+        print 'MESSAGE: Full message from server follows:'
+        print r.text
+        return False
+    #else:
+    #    print 'SUCCESS: Image uploaded:', current_image['image_name']
+
+
 def post_deployment_to_server(deployment_path, server_root, username, user_apikey, campaign_url):
     """Iterates through campaign directory POSTing data/imagery to the API at a specified Catami server
     """
@@ -757,13 +793,19 @@ def post_deployment_to_server(deployment_path, server_root, username, user_apike
 
     #main image posting loop.
 
+    print 'Uploading data to server, initial pass...'
+    pbar = ProgressBar(widgets=[Percentage(), Bar(), Timer()], maxval=len(image_data)).start()
+    count = 0
+
+    list_for_posting = []
     for index, current_image in enumerate(image_data):
+
         # if the image has no lat/long we skip it here
         if str(current_image['latitude']).lower() == 'None'.lower() or str(current_image['longitude']).lower() == 'None'.lower():
-            print 'MESSAGE: Skipping [', index, '/', len(image_data), ']', current_image['image_name'], 'No geolocation'
+            #print 'MESSAGE: Skipping [', index, '/', len(image_data), ']', current_image['image_name'], 'No geolocation'
             continue
 
-        print 'MESSAGE: Uploading [', index, '/', len(image_data), ']', current_image['image_name']
+        #print 'MESSAGE: Uploading [', index, '/', len(image_data), ']', current_image['image_name']
 
         # STEP 1 post the image metadata
         image_metadata = dict(web_location='',
@@ -773,14 +815,14 @@ def post_deployment_to_server(deployment_path, server_root, username, user_apike
                               position='SRID=4326;POINT('+current_image['longitude']+' '+current_image['latitude']+')',
                               depth=image_data[3]['depth'])
 
-        print 'SENDING: Image metadata for', current_image['image_name']
+        #print 'SENDING: Image metadata for', current_image['image_name']
         url = urlparse.urljoin(server_root, image_metadata_api_path)
         headers = {'Content-type': 'application/json'}
         r = requests.post(url, data=json.dumps(image_metadata), headers=headers, params=params)
 
         if (r.status_code == requests.codes.created):
             image_metadata_url = r.headers['location']
-            print 'SUCCESS: Image metadata uploaded:', urlparse.urlsplit(image_metadata_url).path
+        #    print 'SUCCESS: Image metadata uploaded:', urlparse.urlsplit(image_metadata_url).path
         else:
             print 'FAILED: Server returned', r.status_code
             print 'MESSAGE: Full message from server follows:'
@@ -797,14 +839,14 @@ def post_deployment_to_server(deployment_path, server_root, username, user_apike
         # add the image api url for camera
         camera_data['image'] = urlparse.urlsplit(image_metadata_url).path
 
-        print 'SENDING: Camera info...'
+        #print 'SENDING: Camera info...'
         url = urlparse.urljoin(server_root, camera_api_path)
         headers = {'Content-type': 'application/json'}
         r = requests.post(url, data=json.dumps(camera_data), headers=headers, params=params)
 
         if (r.status_code == requests.codes.created):
             camera_url = r.headers['location']
-            print 'SUCCESS: Camera data uploaded:', urlparse.urlsplit(camera_url).path
+        #    print 'SUCCESS: Camera data uploaded:', urlparse.urlsplit(camera_url).path
         else:
             print 'FAILED: Server returned', r.status_code
             print 'MESSAGE: Full message from server follows:'
@@ -819,13 +861,13 @@ def post_deployment_to_server(deployment_path, server_root, username, user_apike
                                 yaw=current_image['yaw'],
                                 altitude=current_image['altitude'])
 
-        print 'SENDING: Measurement for', current_image['image_name']
+        #print 'SENDING: Measurement for', current_image['image_name']
         url = urlparse.urljoin(server_root, measurement_api_path)
         headers = {'Content-type': 'application/json'}
         r = requests.post(url, data=json.dumps(measurement_data), headers=headers, params=params)
         if (r.status_code == requests.codes.created):
             measurement_url = r.headers['location']
-            print 'SUCCESS: Measurement data uploaded:', urlparse.urlsplit(measurement_url).path
+        #    print 'SUCCESS: Measurement data uploaded:', urlparse.urlsplit(measurement_url).path
         else:
             print 'FAILED: Server returned', r.status_code
             print 'MESSAGE: Full message from server (if any) follows:'
@@ -833,28 +875,38 @@ def post_deployment_to_server(deployment_path, server_root, username, user_apike
             return False
 
         # STEP 3 finally post the actual image
+        data_package = current_image
+        data_package['measurement_url'] = measurement_url
+        data_package['camera_url'] = camera_url
+        data_package['deployment'] = deployment_url.split('/')[-2]
+        data_package['deployment_path'] = deployment_path
+        data_package['image_object_api_path'] = image_object_api_path
+        data_package['username'] = params['username']
+        data_package['user_apikey'] = params['api_key']
 
-        #image POST also needs:
-        #'deployment': deployment ID number
-        post_data = {'deployment': deployment_url.split('/')[-2]}
+        list_for_posting.append(data_package)
+        count += 1
+        pbar.update(count)
 
-        print 'SENDING: Image object;', current_image['image_name']
-        url = urlparse.urljoin(server_root, image_object_api_path)
-        headers = {'Content-type': 'application/json'}
-        if os.path.isfile(os.path.join(deployment_path, current_image['image_name'])):
-            image_file = {'img': open(os.path.join(deployment_path, current_image['image_name']), 'rb')}
-        else:
-            print 'FAILED: expect image missing at', os.path.join(deployment_path, current_image['image_name'])
-            return False
+    pbar.finish()
 
-        r = requests.post(url, files=image_file, params=params, data=post_data)
-        if (r.status_code == requests.codes.created):
-            print 'SUCCESS: Image uploaded:', current_image['image_name']
-        else:
-            print 'FAILED: Server returned', r.status_code
-            print 'MESSAGE: Full message from server follows:'
-            print r.text
-            return False
+    # need to upload one image first so that the deployment directory is created on the server
+    post_image_to_image_url(list_for_posting[0])
+
+    print 'Uploading images to server...'
+    pbar = ProgressBar(widgets=[Percentage(), Bar(), Timer()], maxval=len(list_for_posting)).start()
+    count = 0
+    pool = Pool(processes=10)
+    rs = pool.imap_unordered(post_image_to_image_url, list_for_posting[1:])
+    pool.close()
+
+    num_tasks = len(list_for_posting) - 1
+    while (True):
+        pbar.update(rs._index)
+        if (rs._index == num_tasks):
+            break
+        time.sleep(0.5)
+    pbar.finish()
 
     return True
 

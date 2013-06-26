@@ -31,13 +31,15 @@ import os.path
 import imghdr
 import argparse
 
+from datetime import datetime
+
 from PIL import Image
 from PIL.ExifTags import TAGS, GPSTAGS
 
 parser = argparse.ArgumentParser(description='Parse AIMS Kayak (GoPro) files to produce valid Catami project.')
 parser.add_argument('--path', nargs=1, help='Path to root Kayak data directory')
 parser.add_argument('--deployment', action='store_true', default=False, help='Convert the directory as a deployment, to be attached to an existing campaign')
-parser.add_argument('--depth', nargs=1, help='Depth estimate in metres for the entire set of images.')
+parser.add_argument('--depth', nargs=1, type=float, help='Depth estimate in metres for the entire set of images.')
 
 args = parser.parse_args()
 make_deployment = args.deployment
@@ -170,7 +172,7 @@ def convert_deployment(root_import_path, directory):
         with open(os.path.join(image_dir, images_filename), "w") as f:
             version_string = 'version:'+current_format_version+'\n'
             f.write(version_string)
-            headers = 'Time ,Latitude , Longitude  , Depth  , ImageName , CameraName , CameraAngle , Temperature (celcius) , Salinity (psu) , Pitch (radians) , Roll (radians) , Yaw (radians) , Altitude (metres)\n'
+            headers = 'Time, Latitude, Longitude, Depth, ImageName, CameraName, CameraAngle, Temperature (celcius), Salinity (psu), Pitch (radians), Roll (radians), Yaw (radians), Altitude (metres)\n'
             f.write(headers)
     print 'Made', images_filename, 'in', directory
 
@@ -194,8 +196,8 @@ def convert_deployment(root_import_path, directory):
         if is_image(os.path.join(image_dir, image)):
             count = count + 1
             latitude, longitude = get_lat_lon(os.path.join(image_dir, image))
-            depth = args.depth
-            image_datetime = get_photo_datetime(os.path.join(image_dir, image))
+            depth = args.depth[0]
+            image_datetime = datetime.strptime(get_photo_datetime(os.path.join(image_dir, image)), '%Y:%m:%d %H:%M:%S')
             camera_name = get_camera_makemodel(os.path.join(image_dir, image))
             camera_angle = 'Downward'
             temperature = fill_value

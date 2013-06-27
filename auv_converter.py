@@ -33,7 +33,6 @@ import csv
 from progressbar import ProgressBar, Percentage, Bar, Timer
 
 from PIL import Image
-#from PIL.ExifTags import TAGS, GPSTAGS
 
 globallock = Lock()
 
@@ -458,6 +457,14 @@ def convert_deployment(deployment_import_path, deployment_output_path):
         else:
             auvdeployment['short_name'] = deployment_import_path.split('/')[-1]
 
+        if not os.path.isfile(os.path.join(deployment_output_path, images_filename)):
+            with open(os.path.join(deployment_output_path, images_filename), "w") as f:
+                version_string = 'version:'+current_format_version+'\n'
+                f.write(version_string)
+                headers = 'Time ,Latitude , Longitude  , Depth  , ImageName , CameraName , CameraAngle , Temperature (celcius) , Salinity (psu) , Pitch (radians) , Roll (radians) , Yaw (radians) , Altitude (metres)\n'
+                f.write(headers)
+        print 'Made', images_filename, 'in', deployment_output_path
+
         # make the description file if it doesn't exist
         if not os.path.isfile(os.path.join(deployment_output_path, description_filename)):
             with open(os.path.join(deployment_output_path, description_filename), "w") as f:
@@ -506,20 +513,16 @@ def convert_deployment(deployment_import_path, deployment_output_path):
         pbar = ProgressBar(widgets=[Percentage(), Bar(), Timer()], maxval=len(image_list)).start()
         count = 0
         pool = Pool(processes=10)
-        #pool.map(convert_file, zip(image_name_list, new_image_name_list))
         rs = pool.imap_unordered(convert_file, image_name_list)
         pool.close()
 
         count = 0
-        #pbar = ProgressBar(widgets=[Percentage(), Bar(), Timer()], maxval=len(image_list)).start()
         num_tasks = len(image_name_list)
         while (True):
             pbar.update(rs._index)
             if (rs._index == num_tasks):
                 break
-            #pbar.update(count)
             time.sleep(0.5)
-        #pool.join()
         pbar.finish()
 
     print 'Added ', count, 'entries in', deployment_output_path, ":", images_filename

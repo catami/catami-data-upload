@@ -88,6 +88,9 @@ images_filename = 'images.csv'
 description_filename = 'description.txt'
 campaign_filename = 'campaign.txt'
 
+#used to check for duplicate POST attempting
+duplicate_error_message = 'duplicate key value violates unique constraint'
+
 
 def get_status_code(host, path="/"):
     """ This function retreives the status code of a website by requesting
@@ -298,7 +301,6 @@ def read_images_file(deployment_path):
 
             for row in images_reader:
                 row_index = row_index + 1
-
                 image_data_instance = dict(time=row[0],
                                            latitude=row[1],
                                            longitude=row[2],
@@ -663,6 +665,7 @@ def check_campaign(root_import_path):
 
 def post_campaign_to_server(root_import_path, server_root, user_name, api_key):
     """Iterates through campaign directory POSTing data/imagery to the API at a specified Catami server
+        If the object to be posted already exists, silently moves to the next one as needed
     """
 
     campaign_api_path = '/api/dev/campaign/'
@@ -677,16 +680,42 @@ def post_campaign_to_server(root_import_path, server_root, user_name, api_key):
     # headers = {'Content-type': 'application/x-www-form-urlencoded'}
     # r = http.request_encode_body('POST', url, fields=body, headers=headers)
 
-    #POST campaign
+    #POST campaign.  If the campaign already exists we are probably trying to resume
+    # a previously incomplete upload.  In that case we find out which current campaign matches
+    # the campaign we get from the campaign.txt and move on.
 
     print 'SENDING: Campaign info...'
+
     headers = {'Content-type': 'application/json'}
+
     r = requests.post(url, data=json.dumps(campaign_data), headers=headers, params=params)
-    if (r.status_code == requests.codes.created):
+    if r.status_code == requests.codes.created:
         campaign_url = r.headers['location']
         print 'SUCCESS: Campaign header data uploaded:', campaign_url
+    elif duplicate_error_message.lower() in r.text.lower():
+        url = urlparse.urljoin(server_root, campaign_api_path)
+        params['short_name'] = campaign_data['short_name']
+        params['date_start'] = campaign_data['date_start']
+
+        r = requests.get(url, headers=headers, params=params)
+        if r.status_code != requests.codes.ok:
+            print 'FAILED: server API problem detected for', url
+            return False
+        else:
+            # we need the request to return 1 object.  If there is more than 1 (or 0) something is wrong
+            if len(r.json()) > 1 or len(r.json()) == 0:
+                print 'FAILED: Expected to find one matching campaign, but found', len(r.json())
+                for jsonentry in r.json():
+                    print 'check:', jsonentry['resource_uri']
+                print 'MESSAGE: You should contact the Catami team to sort this out.'
+                return False
+
+            campaign_url = r.json()[0]['resource_uri']
+            print 'MESSAGE: Resuming upload of', campaign_url
     else:
         print 'FAILED: Server returned', r.status_code
+        print 'MESSAGE: Full message from server follows:'
+        print str(r.text)
         return False
 
     #POST deployment/s
@@ -703,7 +732,11 @@ def post_campaign_to_server(root_import_path, server_root, user_name, api_key):
 
 def post_image_to_image_url(post_package):
     """Posts an image to the server using file POST
+        If the file already exists, silently moves on.
     """
+    duplicate_text_head = 'Destination path'
+    duplicate_text_tail = 'already exists'
+
     #image POST also needs:
     #'deployment': deployment ID number
     post_data = {'deployment': post_package['deployment']}
@@ -718,13 +751,16 @@ def post_image_to_image_url(post_package):
         return False
 
     r = requests.post(url, files=image_file, params=params, data=post_data)
-    if not (r.status_code == requests.codes.created):
+    if duplicate_text_head in r.text and duplicate_text_tail in r.text:
+        # this image already exists, we have nothing to do.
+        status = True
+    elif not (r.status_code == requests.codes.created):
         print 'FAILED: Server returned', r.status_code
         print 'MESSAGE: Full message from server follows:'
         print r.text
-        return False
-    #else:
-    #    print 'SUCCESS: Image uploaded:', current_image['image_name']
+        status = False
+
+    return status
 
 
 def post_deployment_to_server(deployment_path, server_root, username, user_apikey, campaign_url):
@@ -781,9 +817,31 @@ def post_deployment_to_server(deployment_path, server_root, username, user_apike
     if (r.status_code == requests.codes.created):
         deployment_url = r.headers['location']
         print 'SUCCESS: Deployment header data uploaded:', urlparse.urlsplit(deployment_url).path
+    elif duplicate_error_message.lower() in r.text.lower():
+        # an object that looks like the post object already exists
+
+        params['short_name'] = deployment_post_data['short_name']
+
+        r = requests.get(url, headers=headers, params=params)
+        if r.status_code != requests.codes.ok:
+            print 'FAILED: server API problem detected for', url
+            return False
+        else:
+            # we need the request to return 1 object.  If there is more than 1 (or 0) something is wrong
+            if len(r.json()) > 1 or len(r.json()) == 0:
+                print 'FAILED: Expected to find one matching deployment, but found', len(r.json())
+                for jsonentry in r.json():
+                    print 'check:', jsonentry['resource_uri']
+                print 'MESSAGE: You should contact the Catami team to sort this out.'
+                return False
+
+            deployment_url = r.json()[0]['resource_uri']
+            print 'MESSAGE: Resuming upload of', deployment_url
     else:
         print 'FAILED: Server returned', r.status_code
         print 'MESSAGE: Full message from server follows:'
+        print deployment_post_data['start_time_stamp']
+        print deployment_post_data['short_name']
         print r.text
         return False
 
@@ -800,6 +858,8 @@ def post_deployment_to_server(deployment_path, server_root, username, user_apike
     list_for_posting = []
     for index, current_image in enumerate(image_data):
 
+        params = dict(username=username, api_key=user_apikey)
+
         # if the image has no lat/long we skip it here
         if str(current_image['latitude']).lower() == 'None'.lower() or str(current_image['longitude']).lower() == 'None'.lower():
             #print 'MESSAGE: Skipping [', index, '/', len(image_data), ']', current_image['image_name'], 'No geolocation'
@@ -810,6 +870,7 @@ def post_deployment_to_server(deployment_path, server_root, username, user_apike
         # STEP 1 post the image metadata
         image_metadata = dict(web_location='',
                               archive_location='None',
+                              image_name=current_image['image_name'],
                               deployment=urlparse.urlsplit(deployment_url).path,
                               date_time=current_image['time'],
                               position='SRID=4326;POINT('+current_image['longitude']+' '+current_image['latitude']+')',
@@ -818,11 +879,33 @@ def post_deployment_to_server(deployment_path, server_root, username, user_apike
         #print 'SENDING: Image metadata for', current_image['image_name']
         url = urlparse.urljoin(server_root, image_metadata_api_path)
         headers = {'Content-type': 'application/json'}
+
         r = requests.post(url, data=json.dumps(image_metadata), headers=headers, params=params)
 
         if (r.status_code == requests.codes.created):
             image_metadata_url = r.headers['location']
         #    print 'SUCCESS: Image metadata uploaded:', urlparse.urlsplit(image_metadata_url).path
+        elif duplicate_error_message.lower() in r.text.lower():
+            # a generic image that looks like the post object already exists
+            params['date_time'] = current_image['time']
+
+            r = requests.get(url, headers=headers, params=params)
+            if r.status_code != requests.codes.ok:
+                print 'FAILED: server API problem detected for', url
+                print 'MESSAGE: Full message from server follows:'
+                print r.text
+                return False
+            else:
+                # we need the request to return 1 object.  If there is more than 1 (or 0) something is wrong
+                if len(r.json()) > 1 or len(r.json()) == 0:
+                    print 'FAILED: Expected to find one matching image object, but found', len(r.json())
+                    for jsonentry in r.json():
+                        print 'check:', jsonentry['resource_uri']
+                    print 'MESSAGE: You should contact the Catami team to sort this out.'
+                    return False
+
+            image_metadata_url = r.json()[0]['resource_uri']
+            #print 'MESSAGE: Resuming after upload of', image_metadata_url
         else:
             print 'FAILED: Server returned', r.status_code
             print 'MESSAGE: Full message from server follows:'
@@ -847,6 +930,29 @@ def post_deployment_to_server(deployment_path, server_root, username, user_apike
         if (r.status_code == requests.codes.created):
             camera_url = r.headers['location']
         #    print 'SUCCESS: Camera data uploaded:', urlparse.urlsplit(camera_url).path
+        elif duplicate_error_message.lower() in r.text.lower():
+            # a generic camera that looks like the post object already exists
+            newparams = params
+            newparams['id'] = image_metadata_url.split('/')[-2]
+            newparams['name'] = camera_data['name']
+
+            r = requests.get(url, headers=headers, params=newparams)
+            if r.status_code != requests.codes.ok:
+                print 'FAILED: server API problem detected for', url
+                print 'MESSAGE: Full message from server follows:'
+                print r.text
+                return False
+            else:
+                # we need the request to return 1 object.  If there is more than 1 (or 0) something is wrong
+                if len(r.json()) > 1 or len(r.json()) == 0:
+                    print 'FAILED: Expected to find one matching camera object, but found', len(r.json())
+                    for jsonentry in r.json():
+                        print 'check:', jsonentry['resource_uri']
+                    print 'MESSAGE: You should contact the Catami team to sort this out.'
+                    return False
+
+            camera_url = r.json()[0]['resource_uri']
+            #print 'MESSAGE: Resuming after upload of', camera_url
         else:
             print 'FAILED: Server returned', r.status_code
             print 'MESSAGE: Full message from server follows:'

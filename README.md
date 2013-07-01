@@ -20,6 +20,10 @@ In addition the following Python modules will need to be installed:
 Before you try to validate or upload Catami data you need to get your data under control.  Catami has a simple, human readable
 data format, documented at https://github.com/catami/catami/wiki/Data-importing
 
+#### Important Notes
+If you are converting a campaign for import you will need to manually edit the top level campaign.txt file to add required information
+that cannot be automatically generated.  Similarly the top level deployment.txt file should also be checked/edited manually for each deployment.
+
 ### Current conversion routines:
 #### aims_ti_converter.py
 Converts AIMS Towed Imagery that uses a root level XLSX (Excel) file for imagery geolocation. Imagery is organised
@@ -42,6 +46,7 @@ Converts Kayak collected imagery into Catami format.  Multiple directories withi
 Catami Campaign/Deployment format, alternately a specified directory of images can be converted to a deployment for import to 
 a pre-existing campaign. Geolocation data is taken from the EXIF Geolocation data in the images.  You can specify depth (if no
 depth soundings are available) with a single estimate with the --depth flag.
+
 
 Example usage:
 
@@ -86,6 +91,32 @@ to upload a deployment to an existing campaign
     			     		 --username user \
 							 --apikey e688869735a817bf890d701d4d2c713ec9de67d67 \
     			     		 --campaign_api /api/dev/campaign/92
+
+Example run:
+	>:Catami Uploader markg$ python catami_upload.py --campaign /Volumes/STORE_MAC/data/TurquoiseBay_20130516  --server http://localhost:8000 --username mangop --apikey 483b51e56e87caf1572fbfd31ea4702f582647f9
+	MESSAGE: Checking /Volumes/STORE_MAC/data/TurquoiseBay_20130516
+	SUCCESS: Campaign.txt is verified
+	MESSAGE: Checking /Volumes/STORE_MAC/data/TurquoiseBay_20130516/20130516_TurquoiseBay
+	SUCCESS: description.txt is verified
+	MESSAGE: Checking Deployment images.csv ...
+	MISSING: images.csv row: 3 latitude is required
+	MISSING: images.csv row: 3 longitude is required
+	MISSING: images.csv row: 4 latitude is required
+	MISSING: images.csv row: 4 longitude is required
+	SUCCESS: 682  images checked
+	SUCCESS: All checks are done, campaign is ready to upload
+	SENDING: Campaign info...
+	SUCCESS: Campaign header data uploaded: http://localhost:8000/api/dev/campaign/301/
+	SENDING: Deployment info for 20130516_TurquoiseBay
+	MESSAGE: Scanning /Volumes/STORE_MAC/data/TurquoiseBay_20130516/20130516_TurquoiseBay
+	SENDING: Deployment info...
+	SUCCESS: Deployment header data uploaded: /api/dev/generic_deployment/164/
+	Uploading data to server, initial pass...
+	100%|################################################################################################################################################################################################################|Elapsed Time: 0:00:52
+	Uploading images to server...
+	100%|################################################################################################################################################################################################################|Elapsed Time: 0:00:56
+	SUCCESS: Everything went just great!
+
 
 ## Validating a deployment or campaign
 

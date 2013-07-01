@@ -700,6 +700,8 @@ def post_campaign_to_server(root_import_path, server_root, user_name, api_key):
         r = requests.get(url, headers=headers, params=params)
         if r.status_code != requests.codes.ok:
             print 'FAILED: server API problem detected for', url
+            print 'MESSAGE: Full message from server follows:'
+            print r.text
             return False
         else:
             # we need the request to return 1 object.  If there is more than 1 (or 0) something is wrong
@@ -735,6 +737,7 @@ def post_image_to_image_url(post_package):
         If the file already exists, silently moves on.
     """
     status = True
+
     duplicate_text_head = 'Destination path'
     duplicate_text_tail = 'already exists'
 
@@ -826,6 +829,8 @@ def post_deployment_to_server(deployment_path, server_root, username, user_apike
         r = requests.get(url, headers=headers, params=params)
         if r.status_code != requests.codes.ok:
             print 'FAILED: server API problem detected for', url
+            print 'MESSAGE: Full message from server follows:'
+            print r.text
             return False
         else:
             # we need the request to return 1 object.  If there is more than 1 (or 0) something is wrong

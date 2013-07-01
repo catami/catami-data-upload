@@ -997,7 +997,11 @@ def post_deployment_to_server(deployment_path, server_root, username, user_apike
     pbar.finish()
 
     # need to upload one image first so that the deployment directory is created on the server
-    post_image_to_image_url(list_for_posting[0])
+    status = post_image_to_image_url(list_for_posting[0])
+
+    if not status:
+        print 'FAILED: Image upload does not appear to be working. Contact a Catami admin or check your Catami Server'
+        return False
 
     print 'Uploading images to server...'
     pbar = ProgressBar(widgets=[Percentage(), Bar(), Timer()], maxval=len(list_for_posting)).start()

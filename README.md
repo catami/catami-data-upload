@@ -89,11 +89,16 @@ to upload a deployment to an existing campaign
     python catami_upload.py  --deployment /Volumes/STORE_MAC/data/TurquoiseBay_20130516/run01 \
     			    		 --server http://localhost:8000 \
     			     		 --username user \
-							 --apikey e688869735a817bf890d701d4d2c713ec9de67d67 \
+    			     		 --apikey e688869735a817bf890d701d4d2c713ec9de67d67 \
     			     		 --campaign_api /api/dev/campaign/92
 
 Example run:
-	>:Catami Uploader markg$ python catami_upload.py --campaign /Volumes/STORE_MAC/data/TurquoiseBay_20130516  --server http://localhost:8000 --username mangop --apikey 483b51e56e87caf1572fbfd31ea4702f582647f9
+
+	>:Catami Uploader markg$ python catami_upload.py \
+	--campaign /Volumes/STORE_MAC/data/TurquoiseBay_20130516  \
+	--server http://localhost:8000 \
+	--username mangop \
+	--apikey 483b51e56e87caf1572fbfd31ea4702f582647f9
 	MESSAGE: Checking /Volumes/STORE_MAC/data/TurquoiseBay_20130516
 	SUCCESS: Campaign.txt is verified
 	MESSAGE: Checking /Volumes/STORE_MAC/data/TurquoiseBay_20130516/20130516_TurquoiseBay

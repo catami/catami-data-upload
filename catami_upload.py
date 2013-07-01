@@ -734,6 +734,7 @@ def post_image_to_image_url(post_package):
     """Posts an image to the server using file POST
         If the file already exists, silently moves on.
     """
+    status = True
     duplicate_text_head = 'Destination path'
     duplicate_text_tail = 'already exists'
 

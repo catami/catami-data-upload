@@ -771,9 +771,9 @@ def post_deployment_to_server(deployment_path, server_root, username, user_apike
     """Iterates through campaign directory POSTing data/imagery to the API at a specified Catami server
     """
 
-    deployment_api_path = '/api/dev/generic_deployment/'
-    image_metadata_api_path = '/api/dev/generic_image/'
-    camera_api_path = '/api/dev/generic_camera/'
+    deployment_api_path = '/api/dev/deployment/'
+    image_metadata_api_path = '/api/dev/image/'
+    camera_api_path = '/api/dev/camera/'
     measurement_api_path = '/api/dev/measurements/'
     image_object_api_path = '/api/dev/image_upload/'
 

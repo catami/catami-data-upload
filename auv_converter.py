@@ -317,7 +317,7 @@ def auvdeployment_import(files):
     leftcamera = {}
 
     leftcamera['name'] = "Left Colour"
-    leftcamera['angle'] = "Down Angle"
+    leftcamera['angle'] = "Downward"
 
     first_image = None
     last_image = None

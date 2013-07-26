@@ -247,12 +247,14 @@ def main():
                 f.write(string)
                 string = 'Contact Person:\n'
                 f.write(string)
-        print 'Made', campaign_filename, 'in', root_import_path
+
+        print 'SUCCESS: Made', campaign_filename, 'in', root_import_path
+        print 'MESSAGE: You need to manually edit the Campaign file prior to import.'
 
         for directory in directories:
             convert_deployment(root_import_path, directory)
 
-    print '...All done'
+    print 'SUCCESS: Conversion is all done.'
 
 
 if __name__ == "__main__":

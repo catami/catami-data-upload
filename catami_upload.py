@@ -736,6 +736,8 @@ def post_image_to_image_url(post_package):
     """Posts an image to the server using file POST
         If the file already exists, silently moves on.
     """
+
+    print post_package['image_name'],': start'
     status = True
 
     duplicate_text_head = 'Destination path'
@@ -755,6 +757,7 @@ def post_image_to_image_url(post_package):
         return False
 
     r = requests.post(url, files=image_file, params=params, data=post_data)
+
     if duplicate_text_head in r.text and duplicate_text_tail in r.text:
         # this image already exists, we have nothing to do.
         status = True
@@ -763,6 +766,8 @@ def post_image_to_image_url(post_package):
         print 'MESSAGE: Full message from server follows:'
         print r.text
         status = False
+    print post_package['image_name'],':',r.status_code
+    print post_package['image_name'],': done'
 
     return status
 
@@ -868,10 +873,7 @@ def post_deployment_to_server(deployment_path, server_root, username, user_apike
 
         # if the image has no lat/long we skip it here
         if str(current_image['latitude']).lower() == 'None'.lower() or str(current_image['longitude']).lower() == 'None'.lower():
-            #print 'MESSAGE: Skipping [', index, '/', len(image_data), ']', current_image['image_name'], 'No geolocation'
             continue
-
-        #print 'MESSAGE: Uploading [', index, '/', len(image_data), ']', current_image['image_name']
 
         # STEP 1 post the image metadata
         image_metadata = dict(web_location='',
@@ -1010,7 +1012,7 @@ def post_deployment_to_server(deployment_path, server_root, username, user_apike
         return False
 
     print 'Uploading images to server...'
-    pbar = ProgressBar(widgets=[Percentage(), Bar(), Timer()], maxval=len(list_for_posting)).start()
+    #pbar = ProgressBar(widgets=[Percentage(), Bar(), Timer()], maxval=len(list_for_posting)).start()
     count = 0
     pool = Pool(processes=10)
     rs = pool.imap_unordered(post_image_to_image_url, list_for_posting[1:])
@@ -1018,11 +1020,11 @@ def post_deployment_to_server(deployment_path, server_root, username, user_apike
 
     num_tasks = len(list_for_posting) - 1
     while (True):
-        pbar.update(rs._index)
+        #pbar.update(rs._index)
         if (rs._index == num_tasks):
             break
         time.sleep(0.5)
-    pbar.finish()
+    #pbar.finish()
 
     return True
 

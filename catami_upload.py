@@ -737,7 +737,6 @@ def post_image_to_image_url(post_package):
         If the file already exists, silently moves on.
     """
 
-    print post_package['image_name'],': start'
     status = True
 
     duplicate_text_head = 'Destination path'
@@ -766,8 +765,8 @@ def post_image_to_image_url(post_package):
         print 'MESSAGE: Full message from server follows:'
         print r.text
         status = False
-    print post_package['image_name'],':',r.status_code
-    print post_package['image_name'],': done'
+    #print post_package['image_name'],':',r.status_code
+    #print post_package['image_name'],': done'
 
     return status
 
@@ -797,11 +796,6 @@ def post_deployment_to_server(deployment_path, server_root, username, user_apike
     if not check_url(server_root, measurement_api_path):
         api_fail_count += 1
         print 'FAILED: API unavailable at', measurement_api_path
-
-    # image_object_api_path returns 500 right now
-    # if not check_url(server_root, image_object_api_path):
-    #     problem_count += 1
-    #     print 'FAILED: API unavailable at', image_object_api_path
 
     if api_fail_count > 0:
         return False
@@ -839,14 +833,14 @@ def post_deployment_to_server(deployment_path, server_root, username, user_apike
             return False
         else:
             # we need the request to return 1 object.  If there is more than 1 (or 0) something is wrong
-            if len(r.json()) > 1 or len(r.json()) == 0:
+            if len(r.json()) > 2 or len(r.json()) == 0:
                 print 'FAILED: Expected to find one matching deployment, but found', len(r.json())
                 for jsonentry in r.json():
                     print 'check:', jsonentry['resource_uri']
                 print 'MESSAGE: You should contact the Catami team to sort this out.'
                 return False
 
-            deployment_url = r.json()[0]['resource_uri']
+            deployment_url = r.json()['objects'][0]['resource_uri']
             print 'MESSAGE: Resuming upload of', deployment_url
     else:
         print 'FAILED: Server returned', r.status_code
@@ -862,11 +856,12 @@ def post_deployment_to_server(deployment_path, server_root, username, user_apike
 
     #main image posting loop.
 
-    print 'Uploading data to server, initial pass...'
-    pbar = ProgressBar(widgets=[Percentage(), Bar(), Timer()], maxval=len(image_data)).start()
+    print 'MESSAGE: Uploading data to server.'
     count = 0
 
     list_for_posting = []
+    image_data_posted = []
+    # STEP 1: post image meta data
     for index, current_image in enumerate(image_data):
 
         params = dict(username=username, api_key=user_apikey)
@@ -876,155 +871,127 @@ def post_deployment_to_server(deployment_path, server_root, username, user_apike
             continue
 
         # STEP 1 post the image metadata
-        image_metadata = dict(web_location='',
-                              archive_location='None',
-                              image_name=current_image['image_name'],
-                              deployment=urlparse.urlsplit(deployment_url).path,
-                              date_time=current_image['time'],
-                              position='SRID=4326;POINT('+current_image['longitude']+' '+current_image['latitude']+')',
-                              depth=image_data[3]['depth'])
+        image_metadata = dict(web_location="",
+                              archive_location="None",
+                              image_name=current_image["image_name"],
+                              deployment=str(urlparse.urlsplit(deployment_url).path),
+                              date_time=current_image["time"],
+                              position="SRID=4326;POINT("+current_image["longitude"]+" "+current_image["latitude"]+")",
+                              depth=current_image["depth"])
+        image_data_posted.append(current_image)
+        list_for_posting.append(image_metadata);
 
-        #print 'SENDING: Image metadata for', current_image['image_name']
-        url = urlparse.urljoin(server_root, image_metadata_api_path)
-        headers = {'Content-type': 'application/json'}
+    print 'MESSAGE: [Step 1/4] Uploading image metadata to server'
+    pbar = ProgressBar(widgets=[Percentage(), Bar(), Timer()], maxval=len(image_data)).start()
 
-        r = requests.post(url, data=json.dumps(image_metadata), headers=headers, params=params)
+    url = urlparse.urljoin(server_root, image_metadata_api_path)
+    headers = {'Content-type': 'application/json'}
 
-        if (r.status_code == requests.codes.created):
-            image_metadata_url = r.headers['location']
-        #    print 'SUCCESS: Image metadata uploaded:', urlparse.urlsplit(image_metadata_url).path
-        elif duplicate_error_message.lower() in r.text.lower():
-            # a generic image that looks like the post object already exists
-            params['date_time'] = current_image['time']
+    jsonlist  = {}
+    jsonlist["objects"] = list_for_posting
 
-            r = requests.get(url, headers=headers, params=params)
-            if r.status_code != requests.codes.ok:
-                print 'FAILED: server API problem detected for', url
-                print 'MESSAGE: Full message from server follows:'
-                print r.text
-                return False
-            else:
-                # we need the request to return 1 object.  If there is more than 1 (or 0) something is wrong
-                if len(r.json()) > 1 or len(r.json()) == 0:
-                    print 'FAILED: Expected to find one matching image object, but found', len(r.json())
-                    for jsonentry in r.json():
-                        print 'check:', jsonentry['resource_uri']
-                    print 'MESSAGE: You should contact the Catami team to sort this out.'
-                    return False
+    r = requests.patch(url, data=json.dumps(jsonlist), headers=headers, params=params)
+    if (r.status_code == requests.codes.accepted):
+        print "SUCCESS: Image data was uploaded"
+    else:
+        print 'FAILED: Server returned', r.status_code
+        print 'MESSAGE: Full message from server follows:'
+        print r.text
+        return False
+    pbar.finish()
 
-            image_metadata_url = r.json()[0]['resource_uri']
-            #print 'MESSAGE: Resuming after upload of', image_metadata_url
-        else:
-            print 'FAILED: Server returned', r.status_code
-            print 'MESSAGE: Full message from server follows:'
-            print r.text
-            return False
+    created_image_objects = json.loads(r.text)['objects']
+     
+    print 'MESSAGE: [Step 2/5] Preparing camera/measurement metadata'
+    
+    camera_list_for_post = []
+    measurement_list_for_post = []
+    image_list_for_posting = []
 
-        # STEP 2: post the camrea data and measurement data
+    # prepare Camera and Measurement Data and image post data
+    for index, current_image in enumerate(image_data_posted):
         camera_data = get_camera_data(current_image)
-
         if camera_data is None:
             print 'FAILED: Could not get camera data for deployment'
             return False
-
         # add the image api url for camera
-        camera_data['image'] = urlparse.urlsplit(image_metadata_url).path
-
-        #print 'SENDING: Camera info...'
-        url = urlparse.urljoin(server_root, camera_api_path)
-        headers = {'Content-type': 'application/json'}
-        r = requests.post(url, data=json.dumps(camera_data), headers=headers, params=params)
-
-        if (r.status_code == requests.codes.created):
-            camera_url = r.headers['location']
-        #    print 'SUCCESS: Camera data uploaded:', urlparse.urlsplit(camera_url).path
-        elif duplicate_error_message.lower() in r.text.lower():
-            # a generic camera that looks like the post object already exists
-            newparams = params
-            newparams['id'] = image_metadata_url.split('/')[-2]
-            newparams['name'] = camera_data['name']
-
-            r = requests.get(url, headers=headers, params=newparams)
-            if r.status_code != requests.codes.ok:
-                print 'FAILED: server API problem detected for', url
-                print 'MESSAGE: Full message from server follows:'
-                print r.text
-                return False
-            else:
-                # we need the request to return 1 object.  If there is more than 1 (or 0) something is wrong
-                if len(r.json()) > 1 or len(r.json()) == 0:
-                    print 'FAILED: Expected to find one matching camera object, but found', len(r.json())
-                    for jsonentry in r.json():
-                        print 'check:', jsonentry['resource_uri']
-                    print 'MESSAGE: You should contact the Catami team to sort this out.'
-                    return False
-
-            camera_url = r.json()[0]['resource_uri']
-            #print 'MESSAGE: Resuming after upload of', camera_url
-        else:
-            print 'FAILED: Server returned', r.status_code
-            print 'MESSAGE: Full message from server follows:'
-            print r.text
-            return False
-
-        measurement_data = dict(image=urlparse.urlsplit(image_metadata_url).path,
+        camera_data['image'] = urlparse.urlsplit(created_image_objects[index]['resource_uri']).path
+        camera_list_for_post.append(camera_data)
+        
+        measurement_data = dict(image=urlparse.urlsplit(created_image_objects[index]['resource_uri']).path,
                                 temperature=current_image['temperature'],
                                 salinity=current_image['salinity'],
                                 pitch=current_image['pitch'],
                                 roll=current_image['roll'],
                                 yaw=current_image['yaw'],
                                 altitude=current_image['altitude'])
+        measurement_list_for_post.append(measurement_data)
 
-        #print 'SENDING: Measurement for', current_image['image_name']
-        url = urlparse.urljoin(server_root, measurement_api_path)
-        headers = {'Content-type': 'application/json'}
-        r = requests.post(url, data=json.dumps(measurement_data), headers=headers, params=params)
-        if (r.status_code == requests.codes.created):
-            measurement_url = r.headers['location']
-        #    print 'SUCCESS: Measurement data uploaded:', urlparse.urlsplit(measurement_url).path
-        else:
-            print 'FAILED: Server returned', r.status_code
-            print 'MESSAGE: Full message from server (if any) follows:'
-            print r.text
-            return False
-
-        # STEP 3 finally post the actual image
         data_package = current_image
-        data_package['measurement_url'] = measurement_url
-        data_package['camera_url'] = camera_url
+
         data_package['deployment'] = deployment_url.split('/')[-2]
         data_package['deployment_path'] = deployment_path
         data_package['image_object_api_path'] = image_object_api_path
         data_package['username'] = params['username']
         data_package['user_apikey'] = params['api_key']
 
-        list_for_posting.append(data_package)
-        count += 1
-        pbar.update(count)
+        image_list_for_posting.append(data_package)
 
+    print 'SUCCESS: Camera/measurement metadata ready'
+
+    print 'MESSAGE: [Step 3/5] Uploading camera metadata to server'
+    pbar = ProgressBar(widgets=[Percentage(), Bar(), Timer()], maxval=len(image_data)).start()
+    jsonlist  = {}
+    jsonlist["objects"] = camera_list_for_post
+    url = urlparse.urljoin(server_root, camera_api_path)
+    headers = {'Content-type': 'application/json'}
+    r = requests.patch(url, data=json.dumps(jsonlist), headers=headers, params=params)
     pbar.finish()
+    if (r.status_code == requests.codes.accepted):
+        print 'SUCCESS: Camera metadata uploaded'
+    else:
+        print 'FAILED: Server returned', r.status_code
+        print 'MESSAGE: Full message from server follows:'
+        print r.text
+        return False
+
+    print 'MESSAGE: [Step 4/5] Uploading measurement metadata to server'
+    pbar = ProgressBar(widgets=[Percentage(), Bar(), Timer()], maxval=len(image_data)).start()
+    jsonlist  = {}
+    jsonlist["objects"] = measurement_list_for_post
+    url = urlparse.urljoin(server_root, measurement_api_path)
+    headers = {'Content-type': 'application/json'}
+    r = requests.patch(url, data=json.dumps(jsonlist), headers=headers, params=params)
+    pbar.finish()
+    if (r.status_code == requests.codes.accepted):
+        print 'SUCCESS: Measurement metadata uploaded'
+    else:
+        print 'FAILED: Server returned', r.status_code
+        print 'MESSAGE: Full message from server follows:'
+        print r.text
+        return False
 
     # need to upload one image first so that the deployment directory is created on the server
-    status = post_image_to_image_url(list_for_posting[0])
+    status = post_image_to_image_url(image_list_for_posting[0])
 
     if not status:
         print 'FAILED: Image upload does not appear to be working. Contact a Catami admin or check your Catami Server'
         return False
 
-    print 'Uploading images to server...'
-    #pbar = ProgressBar(widgets=[Percentage(), Bar(), Timer()], maxval=len(list_for_posting)).start()
-    count = 0
+    print 'MESSAGE: [Step 5/5] Uploading images to server...'
+    pbar = ProgressBar(widgets=[Percentage(), Bar(), Timer()], maxval=len(image_list_for_posting)).start()
     pool = Pool(processes=10)
-    rs = pool.imap_unordered(post_image_to_image_url, list_for_posting[1:])
+    rs = pool.imap_unordered(post_image_to_image_url, image_list_for_posting[1:])
     pool.close()
 
-    num_tasks = len(list_for_posting) - 1
+    num_tasks = len(image_list_for_posting) - 1
     while (True):
-        #pbar.update(rs._index)
+        pbar.update(rs._index)
         if (rs._index == num_tasks):
             break
         time.sleep(0.5)
-    #pbar.finish()
+    pbar.finish()
+    print 'SUCCESS: Images all uploaded'
 
     return True
 

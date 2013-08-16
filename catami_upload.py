@@ -747,7 +747,6 @@ def post_image_to_image_url(post_package):
     post_data = {'deployment': post_package['deployment']}
     params = dict(username=post_package['username'], api_key=post_package['user_apikey'])
 
-    #print 'SENDING: Image object;', current_image['image_name']
     url = urlparse.urljoin(server_root, post_package['image_object_api_path'])
     if os.path.isfile(os.path.join(post_package['deployment_path'], post_package['image_name'])):
         image_file = {'img': open(os.path.join(post_package['deployment_path'], post_package['image_name']), 'rb')}
@@ -765,8 +764,6 @@ def post_image_to_image_url(post_package):
         print 'MESSAGE: Full message from server follows:'
         print r.text
         status = False
-    #print post_package['image_name'],':',r.status_code
-    #print post_package['image_name'],': done'
 
     return status
 
@@ -845,9 +842,6 @@ def post_deployment_to_server(deployment_path, server_root, username, user_apike
     else:
         print 'FAILED: Server returned', r.status_code
         print 'MESSAGE: Full message from server follows:'
-        print deployment_post_data['start_time_stamp']
-        print deployment_post_data['short_name']
-        print r.text
         return False
 
     # POST images for deployment
@@ -991,7 +985,14 @@ def post_deployment_to_server(deployment_path, server_root, username, user_apike
             break
         time.sleep(0.5)
     pbar.finish()
-    print 'SUCCESS: Images all uploaded'
+
+    processed_tasks = len(list(rs))
+
+    if processed_tasks < num_tasks:
+        print 'FAILED: processed',processed_tasks+1,'of',num_tasks+1,'...Something went wrong'
+        return False
+
+    print 'SUCCESS:',processed_tasks+1,'Images uploaded'
 
     return True
 

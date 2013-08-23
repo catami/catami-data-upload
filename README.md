@@ -14,6 +14,7 @@ In addition the following Python modules will need to be installed:
 * PIL: Python Imaging Library http://www.pythonware.com/products/pil/
 * Requests: http://docs.python-requests.org/en/latest/
 * Numpy: http://www.numpy.org
+* Python Progressbar: http://code.google.com/p/python-progressbar/
 	
 ## Converting a deployment or campaign to Catami format
 

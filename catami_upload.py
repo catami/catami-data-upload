@@ -63,21 +63,22 @@ parser.add_argument('--campaign_api', nargs=1, help='URL for Campaign specified 
 
 args = parser.parse_args()
 
-if not args.deployment and not args.campaign:
-    parser.exit(1, 'You must specify --deployment or --campaign')
+if not args.validate:
+    if args.deployment and not args.campaign:
+        parser.exit(1, 'You must specify --deployment or --campaign')
 
-if args.deployment and not args.campaign_api:
-    parser.exit(1, 'You must specify --campaign_api with --deployment')
+    if not args.deployment and not args.campaign_api:
+        parser.exit(1, 'You must specify --campaign_api with --deployment')
 
-if args.campaign and args.campaign_api:
-    parser.exit(1, 'You cannot specify --campaign_api with --campaign')
+    if args.campaign and args.campaign_api:
+        parser.exit(1, 'You cannot specify --campaign_api with --campaign')
 
-if args.server:
-    server_root = args.server[0]
-if args.username:
-    username = args.username[0]
-if args.apikey:
-    apikey = args.apikey[0]
+    if args.server:
+        server_root = args.server[0]
+    if args.username:
+        username = args.username[0]
+    if args.apikey:
+        apikey = args.apikey[0]
 
 if not args.validate:
     if not args.server or not args.username or not args.apikey:
@@ -1004,7 +1005,8 @@ def main():
 
     #campaign import
     if args.campaign:
-        root_import_path = args.campaign[0]
+        if not args.validate:
+            root_import_path = args.campaign[0]
 
         print 'MESSAGE: Checking', root_import_path
 
@@ -1037,7 +1039,8 @@ def main():
     # deployment import
     if args.deployment:
         deployment_dir = args.deployment[0]
-        campaign_api_path = args.campaign_api[0]
+        if not args.validate:
+            campaign_api_path = args.campaign_api[0]
 
         print 'MESSAGE: Checking', deployment_dir
 

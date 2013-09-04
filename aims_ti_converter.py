@@ -65,7 +65,7 @@ def get_camera_makemodel(image_name):
     return make_model_string
 
 if __name__ == "__main__":
-
+    root_import_path = args.spreadsheet[0].rsplit("/",1)[0]
     wb = load_workbook(filename=args.spreadsheet[0], use_iterators=True)
 
     ws = wb.get_sheet_by_name(name='Sheet1')
@@ -105,31 +105,31 @@ if __name__ == "__main__":
 
         split_path = image_original_file_path.split("\\")
 
-        image_path = split_path[-2]
+        image_folder = split_path[-2]
         image_name = split_path[-1]
 
         # get the camera from the EXIF data, if we can
-        camera_name = get_camera_makemodel(os.path.join(image_path, image_name))
+        camera_name = get_camera_makemodel(os.path.join(root_import_path,image_folder, image_name))
 
         # make the descriptopm file if it doesn't exist
-        if not os.path.isfile(os.path.join(split_path[-2], description_filename)):
-            with open(os.path.join(split_path[-2], description_filename), "w") as f:
+        if not os.path.isfile(os.path.join(root_import_path, image_folder, description_filename)):
+            with open(os.path.join(root_import_path,image_folder, description_filename), "w") as f:
                 version_string = 'version:'+current_format_version+'\n'
                 f.write(version_string)
                 deployment_type_string = 'Type: TI\n'
                 f.write(deployment_type_string)
-                Description_string = 'Description:'+image_path+' Transects\n'
+                Description_string = 'Description:'+image_folder+' Transects\n'
                 f.write(Description_string)
 
         # make the images file if it doesn't exist
-        if not os.path.isfile(os.path.join(split_path[-2], images_filename)):
-            with open(os.path.join(split_path[-2], images_filename), "w") as f:
+        if not os.path.isfile(os.path.join(root_import_path,image_folder, images_filename)):
+            with open(os.path.join(root_import_path,image_folder, images_filename), "w") as f:
                 version_string = 'version:'+current_format_version+'\n'
                 f.write(version_string)
                 headers = 'Time ,Latitude , Longitude  , Depth  , ImageName , CameraName , CameraAngle , Temperature (celcius) , Salinity (psu) , Pitch (radians) , Roll (radians) , Yaw (radians) , Altitude (metres)\n'
                 f.write(headers)
 
         #append to csv
-        with open(os.path.join(split_path[-2], images_filename), "a") as f:
+        with open(os.path.join(root_import_path,image_folder, images_filename), "a") as f:
             csv_string = unicode(image_datetime)+','+str(latitude)+','+str(longitude)+','+str(depth)+','+image_name+','+camera_name+','+str(camera_angle)+','+str(temperature)+','+str(salinity)+','+str(pitch_angle)+','+str(roll_angle)+','+str(yaw_angle)+','+str(altitude)+'\n'
             f.write(csv_string)

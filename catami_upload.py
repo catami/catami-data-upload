@@ -64,7 +64,7 @@ parser.add_argument('--campaign_api', nargs=1, help='URL for Campaign specified 
 args = parser.parse_args()
 
 if not args.validate:
-    if args.deployment and not args.campaign:
+    if not args.deployment and not args.campaign:
         parser.exit(1, 'You must specify --deployment or --campaign')
 
     if not args.deployment and not args.campaign_api:

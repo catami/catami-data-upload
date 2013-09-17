@@ -422,7 +422,10 @@ def convert_file(local_tuple):
     input_image = local_tuple[0]
     output_image = local_tuple[1]
     quality_val = 90
-    Image.open(input_image).save(output_image, quality=quality_val)
+    try:
+        Image.open(input_image).save(output_image, quality=quality_val)
+    except Exception, e:
+        raise e
 
 
 def convert_deployment(deployment_import_path, deployment_output_path):
@@ -492,7 +495,10 @@ def convert_deployment(deployment_import_path, deployment_output_path):
                 image_name = os.path.splitext(image['image_path'].split('/')[-1])[0]+'.jpg'
                 #append to csv
                 with open(os.path.join(deployment_output_path, images_filename), "a") as f:
-                    csv_string = image['date_time']+','+str(image['latitude'])+','+str(image['longitude'])+','+str(image['depth'])+','+image_name+','+image['camera']+','+image['camera_angle']+','+str(image['temperature'])+','+str(image['salinity'])+','+str(image['pitch'])+','+str(image['roll'])+','+str(image['yaw'])+','+str(image['altitude'])+'\n'
+                    # in CATAMI 'depth' is depth of seafloor.  AUV 'depth' is depth of platform, so seafloor depth is AUV depth+ AUV altitude
+                    depth_actual = image['depth'] + image['altitude']
+
+                    csv_string = image['date_time']+','+str(image['latitude'])+','+str(image['longitude'])+','+str(depth_actual)+','+image_name+','+image['camera']+','+image['camera_angle']+','+str(image['temperature'])+','+str(image['salinity'])+','+str(image['pitch'])+','+str(image['roll'])+','+str(image['yaw'])+','+str(image['altitude'])+'\n'
                     f.write(csv_string)
         pbar.finish()
 

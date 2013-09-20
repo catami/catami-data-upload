@@ -211,11 +211,13 @@ def check_deployment_images(deployment_path):
                 image_name = row[4]
                 camera_name = row[5]
                 camera_angle = row[6]
-                salinity = row[7]
-                pitch = row[8]
-                roll = row[9]
-                yaw = row[10]
-                altitude = row[11]
+                temperature = row[7]
+                salinity = row[8]
+                pitch = row[9]
+                roll = row[10]
+                yaw = row[11]
+                altitude = row[12]
+                depth_uncertainty = row[13]
 
                 #image list validation
                 #required
@@ -252,6 +254,8 @@ def check_deployment_images(deployment_path):
                     print 'MISSING:', images_filename, 'row:', row_index, 'yaw is missing'
                 if altitude is None or str(altitude) == 'None':
                     print 'MISSING:', images_filename, 'row:', row_index, 'altitude is missing'
+                if depth_uncertainty is None or str(depth_uncertainty) == 'None':
+                    print 'MISSING:', images_filename, 'row:', row_index, 'depth uncertainty is missing'
 
                 if not (image_name is None or str(image_name) == 'None'):
                     #lets check this image
@@ -314,7 +318,8 @@ def read_images_file(deployment_path):
                                            pitch=row[9],
                                            roll=row[10],
                                            yaw=row[11],
-                                           altitude=row[12])
+                                           altitude=row[12],
+                                           depth_uncertainty=row[13])
                 image_data.append(image_data_instance)
     else:
         print os.path.join(deployment_path, images_filename), 'is no'
@@ -872,7 +877,8 @@ def post_deployment_to_server(deployment_path, server_root, username, user_apike
                               deployment=str(urlparse.urlsplit(deployment_url).path),
                               date_time=current_image["time"],
                               position="SRID=4326;POINT("+current_image["longitude"]+" "+current_image["latitude"]+")",
-                              depth=current_image["depth"])
+                              depth=current_image["depth"],
+                              depth_uncertainty=current_image["depth_uncertainty"])
         image_data_posted.append(current_image)
         list_for_posting.append(image_metadata);
 

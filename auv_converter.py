@@ -496,7 +496,7 @@ def convert_deployment(deployment_import_path, deployment_output_path):
                 #append to csv
                 with open(os.path.join(deployment_output_path, images_filename), "a") as f:
                     # in CATAMI 'depth' is depth of seafloor.  AUV 'depth' is depth of platform, so seafloor depth is AUV depth+ AUV altitude
-                    depth_actual = image['depth'] + image['altitude']
+                    depth_actual = float(image['depth']) + float(image['altitude'])
 
                     csv_string = image['date_time']+','+str(image['latitude'])+','+str(image['longitude'])+','+str(depth_actual)+','+image_name+','+image['camera']+','+image['camera_angle']+','+str(image['temperature'])+','+str(image['salinity'])+','+str(image['pitch'])+','+str(image['roll'])+','+str(image['yaw'])+','+str(image['altitude'])+'\n'
                     f.write(csv_string)

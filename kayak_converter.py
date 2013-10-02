@@ -40,6 +40,7 @@ parser = argparse.ArgumentParser(description='Parse AIMS Kayak (GoPro) files to 
 parser.add_argument('--path', nargs=1, help='Path to root Kayak data directory')
 parser.add_argument('--deployment', action='store_true', default=False, help='Convert the directory as a deployment, to be attached to an existing campaign')
 parser.add_argument('--depth', nargs=1, type=float, help='Depth estimate in metres for the entire set of images.')
+parser.add_argument('--depth_uncertainty', nargs=1, type=float, help='Depth uncertainty estimate in metres for the entire set of images.')
 
 args = parser.parse_args()
 make_deployment = args.deployment
@@ -172,7 +173,7 @@ def convert_deployment(root_import_path, directory):
         with open(os.path.join(image_dir, images_filename), "w") as f:
             version_string = 'version:'+current_format_version+'\n'
             f.write(version_string)
-            headers = 'Time, Latitude, Longitude, Depth, ImageName, CameraName, CameraAngle, Temperature (celcius), Salinity (psu), Pitch (radians), Roll (radians), Yaw (radians), Altitude (metres)\n'
+            headers = 'Time, Latitude, Longitude, Depth, ImageName, CameraName, CameraAngle, Temperature (celcius), Salinity (psu), Pitch (radians), Roll (radians), Yaw (radians), Altitude (metres), Depth Uncertainty (m)\n'
             f.write(headers)
     print 'Made', images_filename, 'in', directory
 
@@ -206,10 +207,10 @@ def convert_deployment(root_import_path, directory):
             roll_angle = fill_value
             yaw_angle = fill_value
             altitude = fill_value
-
+            depth_uncertainty = args.depth_uncertainty[0]
             #append to csv
             with open(os.path.join(image_dir, images_filename), "a") as f:
-                csv_string = unicode(image_datetime)+','+str(latitude)+','+str(longitude)+','+str(depth)+','+image+','+camera_name+','+camera_angle+','+str(temperature)+','+str(salinity)+','+str(pitch_angle)+','+str(roll_angle)+','+str(yaw_angle)+','+str(altitude)+'\n'
+                csv_string = unicode(image_datetime)+','+str(latitude)+','+str(longitude)+','+str(depth)+','+image+','+camera_name+','+camera_angle+','+str(temperature)+','+str(salinity)+','+str(pitch_angle)+','+str(roll_angle)+','+str(yaw_angle)+','+str(altitude)+','+str(depth_uncertainty)+'\n'
                 f.write(csv_string)
     print 'Added ', count, 'entries in', directory, ":", images_filename
 

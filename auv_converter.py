@@ -572,7 +572,7 @@ def main():
         print 'Made', campaign_filename, 'in', root_import_path
 
         for directory in directories:
-            convert_deployment(os.path.join(root_import_path, directory))
+            convert_deployment(os.path.join(root_import_path, directory), os.path.join(root_output_path, directory))
 
     print '...All done'
 

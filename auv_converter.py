@@ -151,6 +151,8 @@ class NetCDFParser:
         """
         return datetime.datetime.fromtimestamp(self.imos_to_unix(imos_time),
                                                tz=tzutc())
+    def isFinished(self):
+        return self.index >= self.items
 
     def next(self):
         """Get the next row in the NetCDF File.
@@ -367,7 +369,7 @@ def auvdeployment_import(files):
         current_image['image_path'] = os.path.join(image_subfolder, image_name)
 
         # get the extra measurements from the seabird data
-        while image_datetime > later_seabird['date_time']:
+        while image_datetime > later_seabird['date_time'] and not netcdf.isFinished():
             later_seabird, earlier_seabird = earlier_seabird, netcdf.next()
 
         # find which is closer - could use interpolation instead

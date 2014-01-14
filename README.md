@@ -1,6 +1,6 @@
 # Catami Data Uploader
 
-A set of stand-alone tools to cdonvert, upload and/or validate data in the Catami data package format to a specified Catami server.
+A set of stand-alone tools to convert, upload and/or validate data in the Catami data package format to a specified Catami server.
 
 The variable nature of historical data means that Catami data conversion routines are created on a case-by-case basis. 
 
